@@ -6,6 +6,8 @@ A personal **family adventure journal + planner**: keep a bucket list of days ou
 
 **[▶ Open the clickable prototype](mockup/family-adventure-mockup.html)** — 5 tappable screens (Home / nudges, the family list with working filters, place detail with a live verdict toggle, add-a-place, and a "Year in Adventures" summary). Light & dark aware.
 
+> **The real app now lives in this repo** — a native iOS + Android app built with **Expo + React Native + TypeScript**. It runs today with local, on-device storage (no backend needed) and is structured so a shared cloud database drops in later. See [Getting started](#getting-started) to run it on a phone.
+
 ---
 
 ## Idea rating: 8 / 10
@@ -43,4 +45,43 @@ The market splits into two camps that never overlap:
 
 ---
 
-*Prototype and plan generated as a starting point — names, content and scope are all open to change.*
+## Getting started
+
+You'll need [Node.js](https://nodejs.org) and the **Expo Go** app on your phone (App Store / Play Store).
+
+```bash
+npm install
+npx expo start        # scan the QR code with Expo Go (iOS: Camera app)
+```
+
+The app opens with a few seeded UK family days out so it feels alive — add, edit, filter, log visits and attach photos straight away. Everything is saved on your device.
+
+To build installable App Store / Play Store binaries later: `npx expo run:ios` / `npx expo run:android`, or use [EAS Build](https://docs.expo.dev/build/introduction/).
+
+## Project structure
+
+```
+src/
+  app/                     # screens (Expo Router — file-based navigation)
+    _layout.tsx            # providers + theme
+    (tabs)/                # Home · List · Add · Year · Family  (+ raised “add” button)
+    place/[id].tsx         # place detail (verdict toggle, notes, photos, log a visit)
+  components/              # PlaceCard, StatusPill, FilterChips, GradientPhoto, Screen…
+  data/
+    types.ts               # Place / Visit / Photo / Status model + helpers
+    store.tsx              # app state + on-device persistence (AsyncStorage)
+    seed.ts                # starter content
+    nudges.ts              # the “sunny today / been 8 months” reminder logic
+    supabase.ts            # documented seam for the future shared cloud database
+  theme.ts                 # the warm pine/coral design tokens (light + dark)
+mockup/                    # the original standalone HTML clickable prototype
+```
+
+### Where it goes next (from the roadmap above)
+- **Shared cloud journal** — wire up `src/data/supabase.ts` (Auth + Postgres + photo storage) so both parents share one journal.
+- **Real nudges** — replace the weather stub in `nudges.ts` with a forecast API and schedule push notifications.
+- **Discovery & AI** — Phase 3 features, funded by a small subscription.
+
+---
+
+*Built as a starting point — names, seeded content and scope are all open to change.*
