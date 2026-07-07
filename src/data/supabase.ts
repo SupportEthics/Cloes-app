@@ -1,34 +1,33 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import 'react-native-url-polyfill/auto';
+
 /**
- * Supabase seam (not wired up yet).
- * ---------------------------------
- * Trove currently persists locally via AsyncStorage in `store.tsx`, so it works
- * with zero backend. To make journals shared across a family and backed up in
- * the cloud, this is the ONLY file the screens don't touch — swap the store's
- * read/write calls for these and nothing in the UI changes.
+ * The shared-cloud client.
  *
- * Steps to go live:
- *   1. Create a project at https://supabase.com and copy the URL + anon key.
- *   2. `npx expo install @supabase/supabase-js`
- *   3. Put the values in an `.env` (EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY).
- *   4. Create tables mirroring `types.ts`:
- *        families(id, name)
- *        members(id, family_id, user_id, display_name)
- *        places(id, family_id, name, location, emoji, gradient, status, tags,
- *               cost, travel_time, notes, created_at)
- *        visits(id, place_id, date, rating, cost, companions, note)
- *        photos(id, place_id, visit_id, storage_path)
- *      …and enable Row Level Security so each family only sees its own rows.
- *   5. Store photos in a Supabase Storage bucket; keep only the path in `photos`.
+ * Trove runs happily with NO backend: if the two env vars below are absent the
+ * app stays in on-device "local mode" (see `store.tsx`). The moment you add a
+ * Supabase project's URL + anon key (see `.env.example` and the README), the
+ * same app gains real logins and a journal shared across the family's phones.
  *
- * Example client (uncomment once the dependency is installed):
- *
- *   import 'react-native-url-polyfill/auto';
- *   import { createClient } from '@supabase/supabase-js';
- *
- *   export const supabase = createClient(
- *     process.env.EXPO_PUBLIC_SUPABASE_URL!,
- *     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
- *   );
+ * The anon key is safe to ship in the app — row-level security (see
+ * `supabase/schema.sql`) is what actually protects each family's data.
  */
 
-export const SUPABASE_READY = false;
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+export const supabase: SupabaseClient | null =
+  url && anonKey
+    ? createClient(url, anonKey, {
+        auth: {
+          storage: AsyncStorage,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
+      })
+    : null;
+
+/** True when a Supabase project is configured — flips the app into cloud mode. */
+export const isCloudConfigured = supabase !== null;

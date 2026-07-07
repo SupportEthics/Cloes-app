@@ -1,102 +1,149 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
-import { SEED_PLACES, makeId } from './seed';
-import type { Photo, Place, Status, Visit } from './types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from './auth';
+import {
+  getOrCreateFamilyId,
+  insertPhoto,
+  insertPlace,
+  insertVisit,
+  loadPlaces,
+  removePlace as cloudRemovePlace,
+  updatePlace as cloudUpdatePlace,
+} from './cloud';
+import { makeId, SEED_PLACES } from './seed';
+import { supabase } from './supabase';
+import type { NewPlace, Photo, Place, Status, Visit } from './types';
 
 /**
- * Local-first data store. Everything persists to the device via AsyncStorage,
- * so the app is fully usable with no backend. When you're ready, `src/data/
- * supabase.ts` documents how to swap this layer for a shared cloud database
- * without touching any screen code — the screens only ever talk to `useStore()`.
+ * The one place the whole app reads and writes data. It runs in two modes,
+ * transparently to every screen:
+ *
+ *   • Local mode  — no backend configured (or signed out): state lives on the
+ *     device via AsyncStorage, seeded with demo content on first launch.
+ *   • Cloud mode  — a Supabase project is configured AND a user is signed in:
+ *     the family's journal loads from Postgres, every change writes through,
+ *     and realtime keeps both parents' phones in sync. The UI updates
+ *     optimistically so it always feels instant.
  */
 
 const STORAGE_KEY = 'trove.places.v1';
 
-type State = { places: Place[]; loaded: boolean };
-
-type Action =
-  | { type: 'hydrate'; places: Place[] }
-  | { type: 'upsert'; place: Place }
-  | { type: 'remove'; id: string };
-
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    case 'hydrate':
-      return { places: action.places, loaded: true };
-    case 'upsert': {
-      const exists = state.places.some((p) => p.id === action.place.id);
-      const places = exists
-        ? state.places.map((p) => (p.id === action.place.id ? action.place : p))
-        : [action.place, ...state.places];
-      return { ...state, places };
-    }
-    case 'remove':
-      return { ...state, places: state.places.filter((p) => p.id !== action.id) };
-    default:
-      return state;
-  }
-}
-
-export type NewPlace = {
-  name: string;
-  location?: string;
-  emoji: string;
-  gradient: Place['gradient'];
-  status: Status;
-  tags: Place['tags'];
-  cost?: string;
-  travelTime?: string;
-  notes?: string[];
-};
+export type { NewPlace };
 
 type StoreValue = {
   places: Place[];
   loaded: boolean;
+  cloud: boolean;
+  familyId: string | null;
   getPlace: (id: string) => Place | undefined;
-  addPlace: (draft: NewPlace) => Place;
+  addPlace: (draft: NewPlace) => Promise<Place>;
   setStatus: (id: string, status: Status) => void;
   logVisit: (id: string, visit?: Partial<Visit>) => void;
   addPhoto: (id: string, photo: Photo) => void;
   updatePlace: (id: string, patch: Partial<Place>) => void;
   removePlace: (id: string) => void;
+  refresh: () => void;
 };
 
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { places: [], loaded: false });
+  const { cloud, session } = useAuth();
+  const useCloud = cloud && !!session;
 
-  // Hydrate from disk once, seeding demo content on first ever launch.
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [familyId, setFamilyId] = useState<string | null>(null);
+  const familyIdRef = useRef<string | null>(null);
+
+  const reload = useCallback(async () => {
+    const fid = familyIdRef.current;
+    if (!fid) return;
+    try {
+      setPlaces(await loadPlaces(fid));
+    } catch {
+      /* keep last-known good state on a transient error */
+    }
+  }, []);
+
+  // ---- Local mode: hydrate from disk (seeding on first launch) + persist ----
   useEffect(() => {
+    if (useCloud) return;
     let active = true;
+    setLoaded(false);
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        const places: Place[] = raw ? JSON.parse(raw) : SEED_PLACES;
-        if (active) dispatch({ type: 'hydrate', places });
+        const next: Place[] = raw ? JSON.parse(raw) : SEED_PLACES;
+        if (active) {
+          setPlaces(next);
+          setLoaded(true);
+        }
       } catch {
-        if (active) dispatch({ type: 'hydrate', places: SEED_PLACES });
+        if (active) {
+          setPlaces(SEED_PLACES);
+          setLoaded(true);
+        }
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [useCloud]);
 
-  // Persist on every change (after initial hydrate).
   useEffect(() => {
-    if (!state.loaded) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state.places)).catch(() => {});
-  }, [state.places, state.loaded]);
+    if (useCloud || !loaded) return;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(places)).catch(() => {});
+  }, [places, loaded, useCloud]);
+
+  // ---- Cloud mode: resolve family, load, then keep in sync via realtime ----
+  useEffect(() => {
+    if (!useCloud) {
+      familyIdRef.current = null;
+      setFamilyId(null);
+      return;
+    }
+    let active = true;
+    let channel: RealtimeChannel | null = null;
+    setLoaded(false);
+    (async () => {
+      try {
+        const fid = await getOrCreateFamilyId();
+        if (!active) return;
+        familyIdRef.current = fid;
+        setFamilyId(fid);
+        setPlaces(await loadPlaces(fid));
+        setLoaded(true);
+        channel = supabase!
+          .channel(`family-${fid}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'places', filter: `family_id=eq.${fid}` }, reload)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'visits', filter: `family_id=eq.${fid}` }, reload)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'photos', filter: `family_id=eq.${fid}` }, reload)
+          .subscribe();
+      } catch {
+        if (active) setLoaded(true); // don't trap the user on a spinner
+      }
+    })();
+    return () => {
+      active = false;
+      if (channel) supabase!.removeChannel(channel);
+    };
+  }, [useCloud, reload]);
 
   const value = useMemo<StoreValue>(() => {
-    const getPlace = (id: string) => state.places.find((p) => p.id === id);
+    const fid = () => familyIdRef.current;
+    const patchOne = (id: string, fn: (p: Place) => Place) =>
+      setPlaces((prev) => prev.map((p) => (p.id === id ? fn(p) : p)));
 
     return {
-      places: state.places,
-      loaded: state.loaded,
-      getPlace,
-      addPlace: (draft) => {
+      places,
+      loaded,
+      cloud: useCloud,
+      familyId,
+      getPlace: (id) => places.find((p) => p.id === id),
+
+      addPlace: async (draft) => {
         const place: Place = {
           id: makeId('place'),
           notes: [],
@@ -105,34 +152,49 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           createdAt: new Date().toISOString(),
           ...draft,
         };
-        dispatch({ type: 'upsert', place });
+        setPlaces((prev) => [place, ...prev]);
+        if (useCloud && fid()) await insertPlace(fid()!, place);
         return place;
       },
+
       setStatus: (id, status) => {
-        const p = getPlace(id);
-        if (!p) return;
-        dispatch({ type: 'upsert', place: { ...p, status } });
+        patchOne(id, (p) => ({ ...p, status }));
+        if (useCloud && fid()) cloudUpdatePlace(id, { status }).catch(reload);
       },
-      logVisit: (id, visit) => {
-        const p = getPlace(id);
-        if (!p) return;
-        const v: Visit = { id: makeId('visit'), date: new Date().toISOString(), ...visit };
-        const status: Status = p.status === 'not_yet' ? 'done' : p.status;
-        dispatch({ type: 'upsert', place: { ...p, status, visits: [v, ...p.visits] } });
+
+      logVisit: (id, visitPartial) => {
+        const current = places.find((p) => p.id === id);
+        if (!current) return;
+        const visit: Visit = { id: makeId('visit'), date: new Date().toISOString(), ...visitPartial };
+        const status: Status = current.status === 'not_yet' ? 'done' : current.status;
+        patchOne(id, (p) => ({ ...p, status, visits: [visit, ...p.visits] }));
+        if (useCloud && fid()) {
+          insertVisit(fid()!, id, visit)
+            .then(() => (status !== current.status ? cloudUpdatePlace(id, { status }) : undefined))
+            .catch(reload);
+        }
       },
+
       addPhoto: (id, photo) => {
-        const p = getPlace(id);
-        if (!p) return;
-        dispatch({ type: 'upsert', place: { ...p, photos: [...p.photos, photo] } });
+        patchOne(id, (p) => ({ ...p, photos: [...p.photos, photo] }));
+        if (useCloud && fid()) insertPhoto(fid()!, id, photo).catch(reload);
       },
+
       updatePlace: (id, patch) => {
-        const p = getPlace(id);
-        if (!p) return;
-        dispatch({ type: 'upsert', place: { ...p, ...patch } });
+        patchOne(id, (p) => ({ ...p, ...patch }));
+        if (useCloud && fid()) cloudUpdatePlace(id, patch).catch(reload);
       },
-      removePlace: (id) => dispatch({ type: 'remove', id }),
+
+      removePlace: (id) => {
+        setPlaces((prev) => prev.filter((p) => p.id !== id));
+        if (useCloud && fid()) cloudRemovePlace(id).catch(reload);
+      },
+
+      refresh: () => {
+        if (useCloud) reload();
+      },
     };
-  }, [state.places, state.loaded]);
+  }, [places, loaded, useCloud, familyId, reload]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

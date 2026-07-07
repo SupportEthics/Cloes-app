@@ -60,9 +60,9 @@ export default function AddScreen() {
 
   const canSave = name.trim().length > 0;
 
-  const save = () => {
+  const save = async () => {
     if (!canSave) return;
-    const place = addPlace({
+    const place = await addPlace({
       name: name.trim(),
       location: location.trim() || undefined,
       emoji: VIBES[vibe].emoji,

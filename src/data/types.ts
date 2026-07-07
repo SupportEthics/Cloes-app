@@ -37,6 +37,19 @@ export interface Place {
   createdAt: string; // ISO
 }
 
+/** The fields needed to create a new place; the rest are filled in by the store. */
+export type NewPlace = {
+  name: string;
+  location?: string;
+  emoji: string;
+  gradient: Place['gradient'];
+  status: Status;
+  tags: Tag[];
+  cost?: string;
+  travelTime?: string;
+  notes?: string[];
+};
+
 export const STATUS_META: Record<
   Status,
   { label: string; short: string; bg: keyof Palette; fg: keyof Palette }

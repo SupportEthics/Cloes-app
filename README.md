@@ -58,6 +58,20 @@ The app opens with a few seeded UK family days out so it feels alive — add, ed
 
 To build installable App Store / Play Store binaries later: `npx expo run:ios` / `npx expo run:android`, or use [EAS Build](https://docs.expo.dev/build/introduction/).
 
+## Turn on cloud sync (shared journal)
+
+Out of the box the app saves on your device only. To make one journal that **syncs across the family's phones with real logins**, connect a free Supabase project — no code changes needed:
+
+1. Create a free account and project at **[supabase.com](https://supabase.com)**.
+2. In the project, open the **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql), and click **Run**. This creates the tables, the security rules, and the invite-code functions.
+3. In **Project Settings → API**, copy the **Project URL** and the **anon public key**.
+4. In the app folder, copy `.env.example` to `.env` and paste those two values in.
+5. Restart with `npx expo start`.
+
+Now the app shows a **sign-in screen**. Each family member creates an account; the first person's **Family** tab shows an **invite code** — the partner enters it under "Join a family" and both phones share one live, syncing journal. Everything is protected by row-level security, so each family only ever sees its own data.
+
+> Adding a place, a verdict, a visit or a note syncs in real time. Photo *files* still live on each device for now — syncing the images themselves (via Supabase Storage) is the next enhancement.
+
 ## Project structure
 
 ```
@@ -66,19 +80,23 @@ src/
     _layout.tsx            # providers + theme
     (tabs)/                # Home · List · Add · Year · Family  (+ raised “add” button)
     place/[id].tsx         # place detail (verdict toggle, notes, photos, log a visit)
-  components/              # PlaceCard, StatusPill, FilterChips, GradientPhoto, Screen…
+  components/              # PlaceCard, StatusPill, FilterChips, GradientPhoto, Screen, SignIn…
   data/
     types.ts               # Place / Visit / Photo / Status model + helpers
-    store.tsx              # app state + on-device persistence (AsyncStorage)
+    store.tsx              # app state — local (device) OR cloud (Supabase) mode
+    auth.tsx               # sign-in / session handling (cloud mode only)
+    supabase.ts            # the Supabase client (null until configured)
+    cloud.ts               # Supabase reads/writes mapped to the app model
     seed.ts                # starter content
     nudges.ts              # the “sunny today / been 8 months” reminder logic
-    supabase.ts            # documented seam for the future shared cloud database
   theme.ts                 # the warm pine/coral design tokens (light + dark)
+supabase/schema.sql        # database + security + invite functions (paste into Supabase)
+.env.example               # where the Supabase URL + key go to switch on sync
 mockup/                    # the original standalone HTML clickable prototype
 ```
 
 ### Where it goes next (from the roadmap above)
-- **Shared cloud journal** — wire up `src/data/supabase.ts` (Auth + Postgres + photo storage) so both parents share one journal.
+- **Shared cloud journal** — ✅ built (Auth + Postgres + realtime + family invite codes). Just connect a free Supabase project (see "Turn on cloud sync" above). Remaining: syncing photo *files* via Supabase Storage.
 - **Real nudges** — replace the weather stub in `nudges.ts` with a forecast API and schedule push notifications.
 - **Discovery & AI** — Phase 3 features, funded by a small subscription.
 
