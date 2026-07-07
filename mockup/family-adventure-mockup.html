@@ -1,0 +1,692 @@
+<title>Trove — Family Adventure App (Prototype)</title>
+<style>
+  :root{
+    --ground-a:#F0E9DC; --ground-b:#DCE7DE;
+    --surface:#FBF8F2; --card:#FFFFFF; --card-2:#F6F1E8;
+    --ink:#22312B; --ink-soft:#5D6B62; --ink-faint:#8A968D;
+    --line:#ECE4D6;
+    --primary:#1F5A4C; --primary-ink:#123C31; --primary-tint:#E2EEE7;
+    --coral:#FF6B4A; --coral-tint:#FFE7DF;
+    --amber:#EE9B18; --amber-tint:#FBEDCF;
+    --sky:#2F86BE; --sky-tint:#DEECF6;
+    --clay:#C0563B; --clay-tint:#F6E1D9;
+    --star:#F5A623;
+    --shadow:0 18px 40px -20px rgba(20,45,35,.45);
+    --shadow-card:0 8px 22px -14px rgba(20,45,35,.30);
+    --r-lg:26px; --r-md:18px; --r-sm:12px;
+    --fs-display:'ui-rounded','SF Pro Rounded',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+    --fs-body:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground-a:#101C18; --ground-b:#0C1713;
+      --surface:#141F1B; --card:#1C2822; --card-2:#22302A;
+      --ink:#F1ECE0; --ink-soft:#A7B5AB; --ink-faint:#76857B;
+      --line:#293831;
+      --primary:#57C7A2; --primary-ink:#0E2A22; --primary-tint:#1D352C;
+      --coral:#FF7E60; --coral-tint:#3A231C;
+      --amber:#F0AE3B; --amber-tint:#3A2E14;
+      --sky:#5AA9DA; --sky-tint:#16303F;
+      --clay:#E08163; --clay-tint:#3A231B;
+      --star:#F5B942;
+      --shadow:0 20px 46px -20px rgba(0,0,0,.6);
+      --shadow-card:0 10px 24px -16px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground-a:#F0E9DC; --ground-b:#DCE7DE;
+    --surface:#FBF8F2; --card:#FFFFFF; --card-2:#F6F1E8;
+    --ink:#22312B; --ink-soft:#5D6B62; --ink-faint:#8A968D;
+    --line:#ECE4D6;
+    --primary:#1F5A4C; --primary-ink:#123C31; --primary-tint:#E2EEE7;
+    --coral:#FF6B4A; --coral-tint:#FFE7DF;
+    --amber:#EE9B18; --amber-tint:#FBEDCF;
+    --sky:#2F86BE; --sky-tint:#DEECF6;
+    --clay:#C0563B; --clay-tint:#F6E1D9;
+    --star:#F5A623;
+    --shadow:0 18px 40px -20px rgba(20,45,35,.45);
+    --shadow-card:0 8px 22px -14px rgba(20,45,35,.30);
+  }
+  :root[data-theme="dark"]{
+    --ground-a:#101C18; --ground-b:#0C1713;
+    --surface:#141F1B; --card:#1C2822; --card-2:#22302A;
+    --ink:#F1ECE0; --ink-soft:#A7B5AB; --ink-faint:#76857B;
+    --line:#293831;
+    --primary:#57C7A2; --primary-ink:#0E2A22; --primary-tint:#1D352C;
+    --coral:#FF7E60; --coral-tint:#3A231C;
+    --amber:#F0AE3B; --amber-tint:#3A2E14;
+    --sky:#5AA9DA; --sky-tint:#16303F;
+    --clay:#E08163; --clay-tint:#3A231B;
+    --star:#F5B942;
+    --shadow:0 20px 46px -20px rgba(0,0,0,.6);
+    --shadow-card:0 10px 24px -16px rgba(0,0,0,.55);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0}
+  .room{
+    min-height:100dvh; width:100%;
+    background:
+      radial-gradient(120% 80% at 15% 0%, var(--ground-a), transparent 60%),
+      radial-gradient(120% 90% at 90% 100%, var(--ground-b), transparent 55%),
+      linear-gradient(160deg,var(--ground-a),var(--ground-b));
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; padding:28px 16px; font-family:var(--fs-body);
+    color:var(--ink); -webkit-font-smoothing:antialiased;
+  }
+  .brandline{display:flex;align-items:center;gap:10px;color:var(--ink-soft);font-size:13px;letter-spacing:.02em}
+  .brandline b{color:var(--ink)}
+  .theme-toggle{
+    border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:999px; padding:7px 14px; font-size:12.5px; font-weight:600; cursor:pointer;
+    font-family:var(--fs-body); display:inline-flex; gap:7px; align-items:center;
+  }
+  .theme-toggle:hover{border-color:var(--primary)}
+
+  /* Phone shell */
+  .phone{
+    width:min(392px,100%); height:min(96dvh,824px);
+    background:var(--surface); border-radius:46px; position:relative;
+    box-shadow:var(--shadow), 0 0 0 10px rgba(0,0,0,.03), inset 0 0 0 1px var(--line);
+    overflow:hidden; display:flex; flex-direction:column;
+  }
+  :root[data-theme="dark"] .phone, @media (prefers-color-scheme:dark){}
+  .statusbar{
+    height:46px; flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    padding:0 26px; font-size:13px; font-weight:600; color:var(--ink); z-index:6;
+    font-variant-numeric:tabular-nums;
+  }
+  .statusbar .island{
+    position:absolute; left:50%; transform:translateX(-50%); top:11px;
+    width:88px; height:24px; background:#0c0f0e; border-radius:999px;
+  }
+  .sb-right{display:flex;gap:6px;align-items:center;font-size:12px}
+
+  .viewport{flex:1 1 auto; position:relative; overflow:hidden}
+  .screen{
+    position:absolute; inset:0; overflow-y:auto; overflow-x:hidden;
+    padding:4px 18px 108px; -webkit-overflow-scrolling:touch;
+    opacity:0; visibility:hidden; transform:translateY(8px);
+    transition:opacity .32s ease, transform .32s ease, visibility .32s;
+  }
+  .screen::-webkit-scrollbar{width:0}
+  .screen.active{opacity:1; visibility:visible; transform:none}
+
+  /* Typography */
+  h1,h2,h3{font-family:var(--fs-display); margin:0; text-wrap:balance; letter-spacing:-.01em}
+  .eyebrow{font-size:11.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint)}
+  .muted{color:var(--ink-soft)}
+  .tnum{font-variant-numeric:tabular-nums}
+
+  /* Home header */
+  .greet{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:6px 2px 14px}
+  .greet h1{font-size:26px; line-height:1.12; font-weight:800}
+  .greet .sub{font-size:13.5px; color:var(--ink-soft); margin-top:3px}
+  .avatar{
+    width:44px;height:44px;border-radius:50%;flex:0 0 auto;
+    background:linear-gradient(150deg,#2E6B4E,#8FBF7E); color:#fff;
+    display:grid;place-items:center;font-family:var(--fs-display);font-weight:800;font-size:17px;
+    box-shadow:var(--shadow-card);
+  }
+  .weatherchip{
+    display:inline-flex;align-items:center;gap:7px;background:var(--coral-tint);color:var(--coral);
+    padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700;margin-top:8px;
+  }
+
+  /* Cards */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); box-shadow:var(--shadow-card)}
+  .section-h{display:flex;align-items:center;justify-content:space-between;margin:22px 2px 12px}
+  .section-h h2{font-size:17px;font-weight:800}
+  .section-h a{font-size:13px;color:var(--primary);font-weight:700;text-decoration:none;cursor:pointer}
+
+  /* Hero nudge */
+  .nudge-hero{
+    position:relative; border-radius:var(--r-lg); overflow:hidden; color:#fff;
+    padding:20px; box-shadow:var(--shadow-card); cursor:pointer;
+    background:linear-gradient(135deg,#FF8A5B 0%, #FF6B4A 45%, #E8542E 100%);
+  }
+  .nudge-hero .sun{position:absolute; right:-26px; top:-30px; font-size:130px; opacity:.28; transform:rotate(6deg)}
+  .nudge-hero .kicker{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.92}
+  .nudge-hero h3{font-size:21px;font-weight:800;margin-top:8px;max-width:80%;line-height:1.18}
+  .nudge-hero .place{display:flex;align-items:center;gap:11px;margin-top:16px;background:rgba(255,255,255,.16);
+    backdrop-filter:blur(4px); border-radius:14px; padding:10px 12px; width:fit-content}
+  .nudge-hero .place .thumb{width:38px;height:38px;border-radius:10px}
+  .nudge-hero .place b{font-size:14px}
+  .nudge-hero .place small{opacity:.9;font-size:11.5px}
+
+  /* Little nudge rows */
+  .nudge-row{display:flex;align-items:center;gap:13px;padding:14px;cursor:pointer}
+  .nudge-row + .nudge-row{border-top:1px solid var(--line)}
+  .nudge-ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:19px;flex:0 0 auto}
+  .nudge-row .t{flex:1;min-width:0}
+  .nudge-row .t b{font-size:14.5px;font-weight:700;display:block}
+  .nudge-row .t span{font-size:12.5px;color:var(--ink-soft)}
+  .chev{color:var(--ink-faint);font-size:18px}
+
+  /* Stat ring row */
+  .stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);padding:13px 10px;text-align:center;box-shadow:var(--shadow-card)}
+  .stat .n{font-family:var(--fs-display);font-weight:800;font-size:22px;line-height:1}
+  .stat .l{font-size:11px;color:var(--ink-soft);margin-top:5px}
+
+  /* Filter chips */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 12px;margin:0 -18px;padding-left:18px;padding-right:18px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
+    padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;
+    font-family:var(--fs-body); transition:all .18s ease;
+  }
+  .chip[aria-pressed="true"]{background:var(--primary);color:#fff;border-color:var(--primary)}
+  :root[data-theme="dark"] .chip[aria-pressed="true"]{color:#0E2A22}
+  @media (prefers-color-scheme:dark){.chip[aria-pressed="true"]{color:#0E2A22}}
+
+  /* Place cards (list) */
+  .placelist{display:flex;flex-direction:column;gap:14px}
+  .place-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;
+    box-shadow:var(--shadow-card);cursor:pointer;transition:transform .16s ease}
+  .place-card:active{transform:scale(.985)}
+  .place-photo{height:118px;position:relative;display:grid;place-items:center;font-size:46px}
+  .place-photo .status-pill{position:absolute;top:10px;left:10px}
+  .place-photo .fav{position:absolute;top:10px;right:12px;font-size:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.3))}
+  .place-body{padding:12px 14px 14px}
+  .place-body h3{font-size:16px;font-weight:800}
+  .place-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;font-size:12.5px;color:var(--ink-soft)}
+  .place-meta span{display:inline-flex;align-items:center;gap:5px}
+  .place-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .tag{font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--card-2);color:var(--ink-soft)}
+
+  /* Status pills */
+  .status-pill{font-size:11px;font-weight:800;padding:5px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:5px;letter-spacing:.01em}
+  .st-would{background:var(--primary-tint);color:var(--primary)}
+  .st-wouldnt{background:var(--clay-tint);color:var(--clay)}
+  .st-notyet{background:var(--amber-tint);color:var(--amber)}
+  .st-done{background:var(--sky-tint);color:var(--sky)}
+
+  /* photo gradients */
+  .g-woods{background:linear-gradient(150deg,#2E6B4E,#8DBE77)}
+  .g-beach{background:linear-gradient(150deg,#48B4C4,#F4D384)}
+  .g-farm{background:linear-gradient(150deg,#E79B45,#A7C24E)}
+  .g-castle{background:linear-gradient(150deg,#7C6BA0,#C6A05B)}
+  .g-soft{background:linear-gradient(150deg,#FF7EA9,#79C4F5)}
+  .g-museum{background:linear-gradient(150deg,#556FB0,#C98FB0)}
+  .g-park{background:linear-gradient(150deg,#3FA79C,#9BCF77)}
+
+  /* Detail */
+  .detail-hero{height:230px;margin:0 -18px 0;position:relative;display:grid;place-items:center;font-size:82px}
+  .detail-hero .back{
+    position:absolute;top:12px;left:16px;width:38px;height:38px;border-radius:50%;
+    background:rgba(255,255,255,.85);color:#22312B;border:none;display:grid;place-items:center;
+    font-size:19px;cursor:pointer;backdrop-filter:blur(4px)}
+  .detail-hero .heart{position:absolute;top:14px;right:18px;width:38px;height:38px;border-radius:50%;
+    background:rgba(255,255,255,.85);display:grid;place-items:center;font-size:17px;cursor:pointer}
+  .detail-hero .fade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.28),transparent 45%)}
+  .detail-title{padding:16px 2px 0}
+  .detail-title h1{font-size:24px;font-weight:800}
+  .detail-title .loc{font-size:13px;color:var(--ink-soft);margin-top:5px;display:flex;align-items:center;gap:6px}
+  .lastvisit{display:flex;align-items:center;gap:9px;margin-top:14px;background:var(--primary-tint);color:var(--primary);
+    padding:11px 14px;border-radius:14px;font-size:13.5px;font-weight:700}
+
+  .seg-label{font-size:12px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.07em;margin:22px 2px 10px}
+  .segment{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .seg-btn{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);padding:12px;border-radius:14px;
+    font-size:13px;font-weight:700;cursor:pointer;font-family:var(--fs-body);display:flex;align-items:center;gap:8px;justify-content:center;transition:all .16s}
+  .seg-btn .dot{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.5}
+  .seg-btn[aria-pressed="true"]{color:#fff}
+  .seg-btn[aria-pressed="true"] .dot{opacity:1;background:#fff}
+  .seg-would[aria-pressed="true"]{background:var(--primary);border-color:var(--primary)}
+  .seg-done[aria-pressed="true"]{background:var(--sky);border-color:var(--sky)}
+  .seg-notyet[aria-pressed="true"]{background:var(--amber);border-color:var(--amber)}
+  .seg-wouldnt[aria-pressed="true"]{background:var(--clay);border-color:var(--clay)}
+
+  .detailstats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:22px}
+  .dstat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow-card)}
+  .dstat .k{font-size:11.5px;color:var(--ink-faint);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+  .dstat .v{font-family:var(--fs-display);font-weight:800;font-size:17px;margin-top:5px;display:flex;align-items:center;gap:6px}
+
+  .notes-box{margin-top:22px}
+  .note-item{display:flex;gap:11px;align-items:flex-start;padding:12px 0}
+  .note-item + .note-item{border-top:1px dashed var(--line)}
+  .note-item .pin{color:var(--coral);font-size:15px;margin-top:1px}
+  .note-item p{margin:0;font-size:14px;line-height:1.4}
+
+  .photostrip{display:flex;gap:9px;margin-top:14px;overflow-x:auto;margin-right:-18px;padding-right:18px;scrollbar-width:none}
+  .photostrip::-webkit-scrollbar{display:none}
+  .photostrip .p{width:96px;height:96px;border-radius:14px;flex:0 0 auto;display:grid;place-items:center;font-size:34px}
+  .photostrip .add{background:var(--card-2);border:1.5px dashed var(--line);color:var(--ink-faint);font-size:26px;font-weight:300}
+
+  .cta{width:100%;border:none;background:var(--primary);color:#fff;padding:16px;border-radius:16px;font-size:15.5px;
+    font-weight:800;font-family:var(--fs-display);cursor:pointer;margin-top:24px;box-shadow:0 10px 22px -10px var(--primary)}
+  :root[data-theme="dark"] .cta{color:#0E2A22}
+  @media (prefers-color-scheme:dark){.cta{color:#0E2A22}}
+  .cta:active{transform:translateY(1px)}
+
+  /* Add form */
+  .form-field{margin-top:18px}
+  .form-field label{font-size:12.5px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px}
+  .input{width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:14px;
+    font-size:15px;font-family:var(--fs-body)}
+  .input::placeholder{color:var(--ink-faint)}
+  .input.big{font-size:18px;font-weight:700;font-family:var(--fs-display)}
+  .pickchips{display:flex;flex-wrap:wrap;gap:8px}
+  .pick{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);padding:9px 14px;border-radius:999px;
+    font-size:13px;font-weight:600;cursor:pointer;font-family:var(--fs-body);display:inline-flex;gap:6px;align-items:center}
+  .pick[aria-pressed="true"]{background:var(--primary-tint);border-color:var(--primary);color:var(--primary)}
+  .tworow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+  /* Year screen */
+  .year-hero{border-radius:var(--r-lg);padding:24px 20px;color:#fff;position:relative;overflow:hidden;
+    background:linear-gradient(140deg,#1F5A4C,#2E7D63 60%,#3FA07E);box-shadow:var(--shadow-card)}
+  .year-hero .deco{position:absolute;right:-20px;bottom:-30px;font-size:120px;opacity:.2}
+  .year-hero .eyebrow{color:rgba(255,255,255,.8)}
+  .year-hero h1{font-size:30px;font-weight:800;margin-top:6px}
+  .year-hero p{margin:8px 0 0;font-size:13.5px;opacity:.9;max-width:85%}
+  .bigstats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+  .bigstat .n{font-family:var(--fs-display);font-weight:800;font-size:26px;line-height:1;color:var(--primary)}
+  .bigstat .l{font-size:11.5px;color:var(--ink-soft);margin-top:5px}
+  .chart{display:flex;align-items:flex-end;gap:9px;height:132px;margin-top:16px;padding:0 2px}
+  .bar{flex:1;background:var(--primary-tint);border-radius:7px 7px 4px 4px;position:relative;min-height:8px;transition:height .5s ease}
+  .bar.hot{background:var(--coral)}
+  .bar span{position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:10.5px;color:var(--ink-faint);font-weight:600}
+  .collage{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .collage .c{aspect-ratio:1;border-radius:12px;display:grid;place-items:center;font-size:30px}
+  .toplist{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+  .toprow{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 13px;box-shadow:var(--shadow-card)}
+  .toprow .rank{font-family:var(--fs-display);font-weight:800;font-size:18px;color:var(--primary);width:22px}
+  .toprow .th{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:20px;flex:0 0 auto}
+  .toprow .nm{flex:1}.toprow .nm b{font-size:14.5px;display:block}.toprow .nm small{font-size:12px;color:var(--ink-soft)}
+  .toprow .rt{color:var(--star);font-size:12.5px;font-weight:700}
+
+  /* Tab bar */
+  .tabbar{
+    position:absolute;left:0;right:0;bottom:0;height:88px;padding:8px 20px 24px;
+    background:linear-gradient(to top,var(--surface) 72%,transparent);
+    display:flex;align-items:center;justify-content:space-between;z-index:8;
+  }
+  .tab{background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;
+    color:var(--ink-faint);font-family:var(--fs-body);font-size:10.5px;font-weight:700;width:56px;padding:6px 0}
+  .tab .ic{font-size:20px;line-height:1}
+  .tab[aria-current="true"]{color:var(--primary)}
+  .tab-add{
+    width:58px;height:58px;border-radius:20px;background:var(--coral);color:#fff;border:none;cursor:pointer;
+    font-size:30px;font-weight:300;display:grid;place-items:center;margin-top:-24px;
+    box-shadow:0 12px 24px -8px var(--coral);flex:0 0 auto}
+  .tab-add:active{transform:scale(.94)}
+
+  :focus-visible{outline:3px solid var(--sky);outline-offset:2px;border-radius:8px}
+  .hint{font-size:12px;color:var(--ink-soft);text-align:center;max-width:392px;line-height:1.5}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="room">
+  <div class="brandline">
+    <span>🧭 <b>Trove</b> — family adventure prototype</span>
+  </div>
+
+  <div class="phone" role="application" aria-label="Trove app prototype">
+    <div class="statusbar">
+      <span>9:41</span>
+      <div class="island"></div>
+      <span class="sb-right">􀙇 􀖀 <span style="border:1.5px solid var(--ink);border-radius:4px;padding:0 3px;font-size:9px">84</span></span>
+    </div>
+
+    <div class="viewport">
+
+      <!-- ================= HOME ================= -->
+      <section class="screen active" id="s-home">
+        <div class="greet">
+          <div>
+            <h1>Good morning,<br>Cloe ☀️</h1>
+            <div class="sub">Tuesday, 7 July · Ilkley</div>
+            <div class="weatherchip">☀️ 21° &amp; sunny — perfect for outdoors</div>
+          </div>
+          <div class="avatar">C</div>
+        </div>
+
+        <div class="nudge-hero" onclick="openDetail('woods')">
+          <div class="sun">☀️</div>
+          <div class="kicker">Sunny today</div>
+          <h3>Why not revisit an outdoor favourite?</h3>
+          <div class="place">
+            <div class="thumb g-woods" style="display:grid;place-items:center;font-size:20px">🌲</div>
+            <div>
+              <b>Bluebell Woods</b><br>
+              <small>⭐ Would do again · 12 min away</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-h"><h2>For you today</h2></div>
+        <div class="card">
+          <div class="nudge-row" onclick="openDetail('farm')">
+            <div class="nudge-ic" style="background:var(--amber-tint)">⏳</div>
+            <div class="t"><b>It's been 8 months</b><span>since you visited Wander Farm Park</span></div>
+            <div class="chev">›</div>
+          </div>
+          <div class="nudge-row" onclick="go('list')">
+            <div class="nudge-ic" style="background:var(--sky-tint)">📍</div>
+            <div class="t"><b>3 bucket-list spots nearby</b><span>All within a 25-minute drive</span></div>
+            <div class="chev">›</div>
+          </div>
+          <div class="nudge-row" onclick="go('list')">
+            <div class="nudge-ic" style="background:var(--primary-tint)">🌧️</div>
+            <div class="t"><b>Rain forecast Thursday</b><span>2 indoor ideas saved for a rainy day</span></div>
+            <div class="chev">›</div>
+          </div>
+        </div>
+
+        <div class="section-h"><h2>Your year so far</h2><a onclick="go('year')">See summary</a></div>
+        <div class="stats3">
+          <div class="stat"><div class="n tnum">18</div><div class="l">Adventures</div></div>
+          <div class="stat"><div class="n tnum">11</div><div class="l">On the list</div></div>
+          <div class="stat"><div class="n tnum">240</div><div class="l">Miles roamed</div></div>
+        </div>
+      </section>
+
+      <!-- ================= LIST ================= -->
+      <section class="screen" id="s-list">
+        <div class="greet" style="padding-bottom:6px">
+          <div><div class="eyebrow">The family list</div><h1 style="font-size:24px;margin-top:6px">Adventures</h1></div>
+          <div class="avatar" style="background:var(--card);color:var(--primary);border:1px solid var(--line);font-size:20px">🔎</div>
+        </div>
+
+        <div class="chips" role="group" aria-label="Filters">
+          <button class="chip" aria-pressed="true" data-filter="all" onclick="filterList(this,'all')">All 22</button>
+          <button class="chip" aria-pressed="false" data-filter="notyet" onclick="filterList(this,'notyet')">Not yet</button>
+          <button class="chip" aria-pressed="false" data-filter="wouldagain" onclick="filterList(this,'wouldagain')">⭐ Would do again</button>
+          <button class="chip" aria-pressed="false" data-filter="rainy" onclick="filterList(this,'rainy')">🌧️ Rainy day</button>
+          <button class="chip" aria-pressed="false" data-filter="free" onclick="filterList(this,'free')">Free</button>
+          <button class="chip" aria-pressed="false" data-filter="toddler" onclick="filterList(this,'toddler')">Toddler-friendly</button>
+          <button class="chip" aria-pressed="false" data-filter="fullday" onclick="filterList(this,'fullday')">Full day</button>
+          <button class="chip" aria-pressed="false" data-filter="nearby" onclick="filterList(this,'nearby')">Nearby</button>
+        </div>
+
+        <div class="placelist" id="placelist">
+          <!-- cards injected by JS -->
+        </div>
+        <div id="emptylist" style="display:none;text-align:center;color:var(--ink-soft);padding:40px 20px;font-size:14px">
+          Nothing matches that filter yet — <b style="color:var(--primary)">add a place</b> to fill the gap. 🌱
+        </div>
+      </section>
+
+      <!-- ================= DETAIL ================= -->
+      <section class="screen" id="s-detail">
+        <div class="detail-hero" id="d-hero">
+          <button class="back" onclick="go('list')" aria-label="Back">‹</button>
+          <button class="heart" aria-label="Favourite" onclick="this.textContent = this.textContent==='🤍'?'❤️':'🤍'">❤️</button>
+          <span id="d-emoji">🌲</span>
+          <div class="fade"></div>
+        </div>
+        <div class="detail-title">
+          <h1 id="d-name">Bluebell Woods</h1>
+          <div class="loc">📍 <span id="d-loc">Middleton, 12 min away</span></div>
+          <div class="lastvisit" id="d-lastvisit">🗓️ Last visited 2 weeks ago · 14 June</div>
+        </div>
+
+        <div class="seg-label">Your verdict</div>
+        <div class="segment">
+          <button class="seg-btn seg-notyet" data-v="notyet" onclick="setVerdict(this)"><span class="dot"></span>Not yet</button>
+          <button class="seg-btn seg-done" data-v="done" onclick="setVerdict(this)"><span class="dot"></span>Been &amp; done</button>
+          <button class="seg-btn seg-would" data-v="would" aria-pressed="true" onclick="setVerdict(this)"><span class="dot"></span>Would do again</button>
+          <button class="seg-btn seg-wouldnt" data-v="wouldnt" onclick="setVerdict(this)"><span class="dot"></span>Wouldn't again</button>
+        </div>
+
+        <div class="detailstats">
+          <div class="dstat"><div class="k">Rating</div><div class="v" style="color:var(--star)">★★★★★</div></div>
+          <div class="dstat"><div class="k">Cost</div><div class="v">Free</div></div>
+          <div class="dstat"><div class="k">Travel time</div><div class="v">12 min 🚗</div></div>
+          <div class="dstat"><div class="k">Who came</div><div class="v">👩 👨 🧒 🐕</div></div>
+        </div>
+
+        <div class="notes-box">
+          <div class="section-h" style="margin:0 2px 4px"><h2 style="font-size:16px">Notes for next time</h2></div>
+          <div class="note-item"><span class="pin">📌</span><p>Go early — the little car park fills by 10am on weekends.</p></div>
+          <div class="note-item"><span class="pin">📌</span><p>Wellies in spring, the bottom path gets muddy.</p></div>
+          <div class="note-item"><span class="pin">📌</span><p>Take a picnic — benches by the stream are lovely.</p></div>
+        </div>
+
+        <div class="section-h" style="margin:22px 2px 4px"><h2 style="font-size:16px">Memories</h2><a>3 photos</a></div>
+        <div class="photostrip">
+          <div class="p g-woods">🌲</div>
+          <div class="p g-park">🦋</div>
+          <div class="p g-woods">🍄</div>
+          <div class="p add">＋</div>
+        </div>
+
+        <button class="cta" onclick="go('add')">＋ Log a new visit</button>
+      </section>
+
+      <!-- ================= ADD ================= -->
+      <section class="screen" id="s-add">
+        <div class="greet" style="padding-bottom:2px">
+          <div><div class="eyebrow">New adventure</div><h1 style="font-size:24px;margin-top:6px">Add a place</h1></div>
+          <button class="tab" style="width:auto;color:var(--ink-soft)" onclick="go('home')">Cancel</button>
+        </div>
+        <p class="muted" style="font-size:13px;margin:2px 2px 4px">Pop it on the list now — you can add photos and notes after your visit.</p>
+
+        <div class="form-field">
+          <label>Where to?</label>
+          <input class="input big" placeholder="e.g. Lotherton Wildlife World" />
+        </div>
+        <div class="form-field">
+          <label>Roughly where</label>
+          <input class="input" placeholder="Town or postcode" />
+        </div>
+
+        <div class="form-field">
+          <label>What kind of day out?</label>
+          <div class="pickchips">
+            <button class="pick" aria-pressed="true" onclick="toggleP(this)">🧸 Toddler-friendly</button>
+            <button class="pick" onclick="toggleP(this)">🌧️ Good in rain</button>
+            <button class="pick" aria-pressed="true" onclick="toggleP(this)">💷 Free</button>
+            <button class="pick" onclick="toggleP(this)">☀️ Outdoors</button>
+            <button class="pick" onclick="toggleP(this)">🕐 Full day</button>
+            <button class="pick" aria-pressed="true" onclick="toggleP(this)">📍 Nearby</button>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label>Status</label>
+          <div class="pickchips">
+            <button class="pick" aria-pressed="true" onclick="soloP(this)">Not yet</button>
+            <button class="pick" onclick="soloP(this)">Been &amp; done</button>
+            <button class="pick" onclick="soloP(this)">⭐ Would do again</button>
+          </div>
+        </div>
+
+        <div class="tworow">
+          <div class="form-field"><label>Cost</label><input class="input" placeholder="Free / ££" /></div>
+          <div class="form-field"><label>Drive time</label><input class="input" placeholder="20 min" /></div>
+        </div>
+
+        <div class="form-field">
+          <label>Notes for next time</label>
+          <input class="input" placeholder="Book ahead · take a picnic…" />
+        </div>
+
+        <div class="form-field">
+          <label>Add a few favourite photos</label>
+          <div class="photostrip">
+            <div class="p add">＋</div>
+            <div class="p g-beach">🏖️</div>
+            <div class="p g-farm">🐐</div>
+          </div>
+        </div>
+
+        <button class="cta" onclick="go('list')">Save to our adventures</button>
+      </section>
+
+      <!-- ================= YEAR ================= -->
+      <section class="screen" id="s-year">
+        <div class="greet" style="padding-bottom:2px">
+          <div><div class="eyebrow">Look back</div><h1 style="font-size:24px;margin-top:6px">Year in adventures</h1></div>
+          <div class="avatar" style="background:var(--card);color:var(--primary);border:1px solid var(--line);font-size:18px">2026</div>
+        </div>
+
+        <div class="year-hero">
+          <div class="deco">🗺️</div>
+          <div class="eyebrow">January – July 2026</div>
+          <h1>You've made 18 memories together</h1>
+          <p>Across 6 counties and 240 miles — and there are still 11 places waiting on your list.</p>
+        </div>
+
+        <div class="bigstats">
+          <div class="bigstat"><div class="n tnum">18</div><div class="l">Adventures</div></div>
+          <div class="bigstat"><div class="n tnum">6</div><div class="l">Counties</div></div>
+          <div class="bigstat"><div class="n tnum">92</div><div class="l">Photos kept</div></div>
+        </div>
+
+        <div class="section-h"><h2 style="font-size:16px">Trips each month</h2></div>
+        <div class="chart" id="chart">
+          <div class="bar" style="height:26%"><span>J</span></div>
+          <div class="bar" style="height:20%"><span>F</span></div>
+          <div class="bar" style="height:46%"><span>M</span></div>
+          <div class="bar" style="height:60%"><span>A</span></div>
+          <div class="bar" style="height:73%"><span>M</span></div>
+          <div class="bar hot" style="height:100%"><span>J</span></div>
+          <div class="bar" style="height:40%"><span>J</span></div>
+        </div>
+
+        <div class="section-h" style="margin-top:34px"><h2 style="font-size:16px">Would do again ⭐</h2></div>
+        <div class="toplist">
+          <div class="toprow" onclick="openDetail('woods')">
+            <div class="rank">1</div><div class="th g-woods">🌲</div>
+            <div class="nm"><b>Bluebell Woods</b><small>Visited 3 times</small></div><div class="rt">★ 5.0</div>
+          </div>
+          <div class="toprow" onclick="openDetail('soft')">
+            <div class="rank">2</div><div class="th g-soft">🤸</div>
+            <div class="nm"><b>Puddle Ducks Soft Play</b><small>The rainy-day hero</small></div><div class="rt">★ 4.8</div>
+          </div>
+          <div class="toprow" onclick="openDetail('farm')">
+            <div class="rank">3</div><div class="th g-farm">🐐</div>
+            <div class="nm"><b>Wander Farm Park</b><small>Best full day out</small></div><div class="rt">★ 4.6</div>
+          </div>
+        </div>
+
+        <div class="section-h" style="margin-top:26px"><h2 style="font-size:16px">Memory collage</h2></div>
+        <div class="collage">
+          <div class="c g-woods">🌲</div><div class="c g-beach">🏖️</div><div class="c g-farm">🐐</div>
+          <div class="c g-castle">🏰</div><div class="c g-park">🦋</div><div class="c g-soft">🎈</div>
+        </div>
+
+        <button class="cta" style="background:var(--coral);box-shadow:0 10px 22px -10px var(--coral);color:#fff">Share our 2026 story</button>
+      </section>
+
+    </div><!-- /viewport -->
+
+    <nav class="tabbar" aria-label="Main">
+      <button class="tab" data-tab="home" aria-current="true" onclick="go('home')"><span class="ic">🏠</span>Home</button>
+      <button class="tab" data-tab="list" onclick="go('list')"><span class="ic">🗺️</span>List</button>
+      <button class="tab-add" aria-label="Add a place" onclick="go('add')">＋</button>
+      <button class="tab" data-tab="year" onclick="go('year')"><span class="ic">📖</span>Year</button>
+      <button class="tab" data-tab="you" onclick="go('home')"><span class="ic">🧒</span>Family</button>
+    </nav>
+  </div>
+
+  <p class="hint">Tap the cards, filter chips, verdict buttons and bottom tabs — it's a clickable prototype. Use your device's light/dark setting to see both themes.</p>
+  <button class="theme-toggle" onclick="toggleTheme()">🌗 Toggle light / dark</button>
+</div>
+
+<script>
+  const PLACES = [
+    {id:'woods', name:'Bluebell Woods', emoji:'🌲', g:'g-woods', loc:'Middleton, 12 min away',
+     status:'wouldagain', pill:['st-would','⭐ Would do again'], rating:'★★★★★', cost:'Free', drive:'12 min',
+     last:'Last visited 2 weeks ago · 14 June',
+     tags:['wouldagain','free','toddler','nearby','fullday'], tagChips:['Free','Toddler','Woodland walk']},
+    {id:'farm', name:'Wander Farm Park', emoji:'🐐', g:'g-farm', loc:'Otley, 35 min away',
+     status:'wouldagain', pill:['st-would','⭐ Would do again'], rating:'★★★★½', cost:'££', drive:'35 min',
+     last:'Last visited 8 months ago · 2 Nov',
+     tags:['wouldagain','fullday','toddler'], tagChips:['Full day','Toddler','Animals']},
+    {id:'beach', name:'Sandymouth Beach', emoji:'🏖️', g:'g-beach', loc:'Coast, 25 min away',
+     status:'notyet', pill:['st-notyet','◦ Not yet'], rating:'—', cost:'Free', drive:'25 min',
+     last:'Not visited yet — added 3 weeks ago',
+     tags:['notyet','free','fullday','nearby'], tagChips:['Free','Full day','Nearby']},
+    {id:'castle', name:'Hollow Castle', emoji:'🏰', g:'g-castle', loc:'Skipton, 40 min away',
+     status:'done', pill:['st-done','✓ Been & done'], rating:'★★★★', cost:'££', drive:'40 min',
+     last:'Last visited 3 months ago · 5 Apr',
+     tags:['done','toddler','fullday'], tagChips:['History','Full day']},
+    {id:'soft', name:'Puddle Ducks Soft Play', emoji:'🤸', g:'g-soft', loc:'Guiseley, 15 min away',
+     status:'wouldagain', pill:['st-would','⭐ Would do again'], rating:'★★★★★', cost:'£', drive:'15 min',
+     last:'Last visited 1 month ago · 9 June',
+     tags:['wouldagain','rainy','toddler','nearby'], tagChips:['Rainy day','Toddler','Nearby']},
+    {id:'museum', name:'Riverside Museum', emoji:'🦕', g:'g-museum', loc:'Leeds, 20 min away',
+     status:'notyet', pill:['st-notyet','◦ Not yet'], rating:'—', cost:'Free', drive:'20 min',
+     last:'Not visited yet — added last week',
+     tags:['notyet','rainy','free','toddler'], tagChips:['Rainy day','Free','Dinosaurs']},
+  ];
+
+  const listEl = document.getElementById('placelist');
+  listEl.innerHTML = PLACES.map(p => `
+    <article class="place-card" data-tags="${p.tags.join(' ')}" onclick="openDetail('${p.id}')">
+      <div class="place-photo ${p.g}">
+        <span class="status-pill ${p.pill[0]}">${p.pill[1]}</span>
+        ${p.status==='wouldagain'?'<span class="fav">❤️</span>':''}
+        ${p.emoji}
+      </div>
+      <div class="place-body">
+        <h3>${p.name}</h3>
+        <div class="place-meta">
+          <span>📍 ${p.drive}</span>
+          <span>💷 ${p.cost}</span>
+          <span style="color:var(--star)">★ ${p.rating==='—'?'—':p.rating.length>4?'5.0':'4.5'}</span>
+        </div>
+        <div class="place-tags">${p.tagChips.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      </div>
+    </article>`).join('');
+
+  function go(name){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('s-'+name).classList.add('active');
+    document.querySelector('.viewport').scrollTop = 0;
+    document.getElementById('s-'+name).scrollTop = 0;
+    document.querySelectorAll('.tab').forEach(t=>t.removeAttribute('aria-current'));
+    const tab = document.querySelector(`.tab[data-tab="${name}"]`);
+    if(tab) tab.setAttribute('aria-current','true');
+  }
+
+  function openDetail(id){
+    const p = PLACES.find(x=>x.id===id) || PLACES[0];
+    document.getElementById('d-emoji').textContent = p.emoji;
+    document.getElementById('d-hero').className = 'detail-hero ' + p.g;
+    document.getElementById('d-name').textContent = p.name;
+    document.getElementById('d-loc').textContent = p.loc;
+    document.getElementById('d-lastvisit').innerHTML = '🗓️ ' + p.last;
+    // set verdict segment
+    const map = {wouldagain:'would', done:'done', notyet:'notyet', wouldnt:'wouldnt'};
+    document.querySelectorAll('.segment .seg-btn').forEach(b=>b.removeAttribute('aria-pressed'));
+    const active = document.querySelector(`.segment .seg-btn[data-v="${map[p.status]}"]`);
+    if(active) active.setAttribute('aria-pressed','true');
+    go('detail');
+  }
+
+  function setVerdict(btn){
+    document.querySelectorAll('.segment .seg-btn').forEach(b=>b.removeAttribute('aria-pressed'));
+    btn.setAttribute('aria-pressed','true');
+    const lv = document.getElementById('d-lastvisit');
+    if(btn.dataset.v==='notyet'){ lv.style.background='var(--amber-tint)'; lv.style.color='var(--amber)'; lv.innerHTML='◦ On your bucket list — not visited yet'; }
+    else { lv.style.background='var(--primary-tint)'; lv.style.color='var(--primary)'; lv.innerHTML='🗓️ Visit logged for today · 7 July'; }
+  }
+
+  function filterList(btn, f){
+    document.querySelectorAll('.chips .chip').forEach(c=>c.setAttribute('aria-pressed','false'));
+    btn.setAttribute('aria-pressed','true');
+    let shown = 0;
+    document.querySelectorAll('.place-card').forEach(card=>{
+      const ok = f==='all' || card.dataset.tags.split(' ').includes(f);
+      card.style.display = ok ? '' : 'none';
+      if(ok) shown++;
+    });
+    document.getElementById('emptylist').style.display = shown ? 'none' : 'block';
+  }
+
+  function toggleP(btn){ btn.setAttribute('aria-pressed', btn.getAttribute('aria-pressed')==='true'?'false':'true'); }
+  function soloP(btn){ btn.parentElement.querySelectorAll('.pick').forEach(b=>b.setAttribute('aria-pressed','false')); btn.setAttribute('aria-pressed','true'); }
+
+  function toggleTheme(){
+    const root = document.documentElement;
+    const now = root.getAttribute('data-theme');
+    const isDark = now ? now==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  }
+</script>
