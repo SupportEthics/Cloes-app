@@ -1,8 +1,11 @@
 import type { GradientKey, Palette } from '@/theme';
 
-export type Status = 'not_yet' | 'done' | 'would_again' | 'wouldnt_again';
+export type Status = 'not_yet' | 'would_again' | 'might_again' | 'wouldnt_again';
 
-export type Tag = 'toddler' | 'rainy' | 'free' | 'outdoors' | 'fullday' | 'nearby';
+export type Tag = 'toddler' | 'rainy' | 'free' | 'outdoors' | 'fullday' | 'other';
+
+/** Verdicts in the order they're shown, for pickers and filters. */
+export const STATUS_ORDER: Status[] = ['not_yet', 'would_again', 'might_again', 'wouldnt_again'];
 
 export interface Visit {
   id: string;
@@ -30,7 +33,6 @@ export interface Place {
   status: Status;
   tags: Tag[];
   cost?: string;
-  travelTime?: string;
   notes: string[]; // notes for next time
   visits: Visit[];
   photos: Photo[];
@@ -46,7 +48,6 @@ export type NewPlace = {
   status: Status;
   tags: Tag[];
   cost?: string;
-  travelTime?: string;
   notes?: string[];
 };
 
@@ -54,11 +55,16 @@ export const STATUS_META: Record<
   Status,
   { label: string; short: string; bg: keyof Palette; fg: keyof Palette }
 > = {
-  not_yet: { label: 'Not yet', short: '◦ Not yet', bg: 'amberTint', fg: 'amber' },
-  done: { label: 'Been & done', short: '✓ Done', bg: 'skyTint', fg: 'sky' },
+  not_yet: { label: 'To-do', short: '◦ To-do', bg: 'amberTint', fg: 'amber' },
   would_again: { label: 'Would do again', short: '⭐ Would do again', bg: 'primaryTint', fg: 'primary' },
-  wouldnt_again: { label: "Wouldn't again", short: "✗ Wouldn't again", bg: 'clayTint', fg: 'clay' },
+  might_again: { label: 'Might do again', short: '🤔 Might do again', bg: 'skyTint', fg: 'sky' },
+  wouldnt_again: { label: "Wouldn't do again", short: "✗ Wouldn't do again", bg: 'clayTint', fg: 'clay' },
 };
+
+/** Safe lookup that tolerates any legacy status value from older data. */
+export function statusMeta(status: Status) {
+  return STATUS_META[status] ?? STATUS_META.not_yet;
+}
 
 export const TAG_META: Record<Tag, { label: string; emoji: string }> = {
   toddler: { label: 'Toddler-friendly', emoji: '🧸' },
@@ -66,7 +72,7 @@ export const TAG_META: Record<Tag, { label: string; emoji: string }> = {
   free: { label: 'Free', emoji: '💷' },
   outdoors: { label: 'Outdoors', emoji: '☀️' },
   fullday: { label: 'Full day', emoji: '🕐' },
-  nearby: { label: 'Nearby', emoji: '📍' },
+  other: { label: 'Other', emoji: '🏷️' },
 };
 
 /** Average rating across logged visits, or undefined if never rated. */

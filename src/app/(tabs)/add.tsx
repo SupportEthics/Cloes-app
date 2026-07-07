@@ -6,7 +6,7 @@ import { GradientPhoto } from '@/components/GradientPhoto';
 import { Screen } from '@/components/Screen';
 import { makeId } from '@/data/seed';
 import { useStore } from '@/data/store';
-import { TAG_META, type Status, type Tag } from '@/data/types';
+import { STATUS_META, STATUS_ORDER, TAG_META, type Status, type Tag } from '@/data/types';
 import { fontRounded, radius, space, useTheme, type GradientKey } from '@/theme';
 
 const VIBES: { emoji: string; gradient: GradientKey; label: string }[] = [
@@ -19,12 +19,8 @@ const VIBES: { emoji: string; gradient: GradientKey; label: string }[] = [
   { emoji: '🌳', gradient: 'park', label: 'Park' },
 ];
 
-const TAGS: Tag[] = ['toddler', 'rainy', 'free', 'outdoors', 'fullday', 'nearby'];
-const STATUSES: { key: Status; label: string }[] = [
-  { key: 'not_yet', label: 'Not yet' },
-  { key: 'done', label: 'Been & done' },
-  { key: 'would_again', label: '⭐ Would do again' },
-];
+const TAGS: Tag[] = ['toddler', 'rainy', 'free', 'outdoors', 'fullday', 'other'];
+const STATUSES: { key: Status; label: string }[] = STATUS_ORDER.map((key) => ({ key, label: STATUS_META[key].label }));
 
 export default function AddScreen() {
   const { c } = useTheme();
@@ -34,10 +30,9 @@ export default function AddScreen() {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [vibe, setVibe] = useState(0);
-  const [tags, setTags] = useState<Set<Tag>>(new Set(['nearby']));
+  const [tags, setTags] = useState<Set<Tag>>(new Set());
   const [status, setStatus] = useState<Status>('not_yet');
   const [cost, setCost] = useState('');
-  const [travel, setTravel] = useState('');
   const [note, setNote] = useState('');
   const [photoUris, setPhotoUris] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -75,7 +70,6 @@ export default function AddScreen() {
         status,
         tags: Array.from(tags),
         cost: cost.trim() || undefined,
-        travelTime: travel.trim() || undefined,
         notes: note.trim() ? [note.trim()] : [],
       });
       photoUris.forEach((uri) => addPhoto(place.id, { id: makeId('photo'), uri }));
@@ -156,26 +150,15 @@ export default function AddScreen() {
         </View>
       </Field>
 
-      <View style={styles.twoCol}>
-        <Field label="Cost" style={{ flex: 1 }}>
-          <TextInput
-            value={cost}
-            onChangeText={setCost}
-            placeholder="Free / ££"
-            placeholderTextColor={c.inkFaint}
-            style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
-          />
-        </Field>
-        <Field label="Drive time" style={{ flex: 1 }}>
-          <TextInput
-            value={travel}
-            onChangeText={setTravel}
-            placeholder="20 min"
-            placeholderTextColor={c.inkFaint}
-            style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
-          />
-        </Field>
-      </View>
+      <Field label="Cost">
+        <TextInput
+          value={cost}
+          onChangeText={setCost}
+          placeholder="Free / £ / ££"
+          placeholderTextColor={c.inkFaint}
+          style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
+        />
+      </Field>
 
       <Field label="Notes for next time">
         <TextInput

@@ -29,6 +29,7 @@ function AppShell() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.surface } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="place/[id]" />
+        <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
       </Stack>
     </StoreProvider>
   );

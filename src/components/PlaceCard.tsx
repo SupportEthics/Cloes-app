@@ -27,7 +27,7 @@ export function PlaceCard({ place }: { place: Place }) {
       <View style={styles.body}>
         <Text style={[styles.name, { color: c.ink }]}>{place.name}</Text>
         <View style={styles.meta}>
-          {place.travelTime ? <Text style={[styles.metaItem, { color: c.inkSoft }]}>📍 {place.travelTime}</Text> : null}
+          {place.location ? <Text style={[styles.metaItem, { color: c.inkSoft }]}>📍 {place.location}</Text> : null}
           {place.cost ? <Text style={[styles.metaItem, { color: c.inkSoft }]}>💷 {place.cost}</Text> : null}
           <Text style={[styles.metaItem, { color: c.star }]}>★ {rating ? rating.toFixed(1) : '—'}</Text>
         </View>

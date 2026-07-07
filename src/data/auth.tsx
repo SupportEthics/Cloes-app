@@ -11,6 +11,7 @@ type AuthValue = {
   cloud: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
+  updateProfile: (fields: { name?: string; homeTown?: string }) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 };
 
@@ -64,6 +65,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) return { error: error.message };
         // If email confirmation is on, there's no session until they confirm.
         return { needsConfirmation: !data.session };
+      },
+      updateProfile: async ({ name, homeTown }) => {
+        if (!supabase) return {};
+        const data: Record<string, unknown> = {};
+        if (name !== undefined) data.display_name = name.trim();
+        if (homeTown !== undefined) data.home_town = homeTown.trim();
+        const { error } = await supabase.auth.updateUser({ data });
+        return error ? { error: error.message } : {};
       },
       signOut: async () => {
         if (!supabase) return;

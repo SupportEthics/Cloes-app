@@ -8,8 +8,6 @@ import { buildNudges, todayWeather } from '@/data/nudges';
 import { useStore } from '@/data/store';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 
-const HOME_TOWN = 'Ilkley';
-
 export default function HomeScreen() {
   const { c } = useTheme();
   const router = useRouter();
@@ -19,6 +17,7 @@ export default function HomeScreen() {
 
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) || user?.email?.split('@')[0] || 'friend';
+  const homeTown = user?.user_metadata?.home_town as string | undefined;
 
   const nudges = useMemo(() => buildNudges(places), [places]);
   const hero = nudges.find((n) => n.kind === 'sunny');
@@ -42,15 +41,18 @@ export default function HomeScreen() {
             {displayName} ☀️
           </Text>
           <Text style={[styles.sub, { color: c.inkSoft }]}>
-            {today} · {HOME_TOWN}
+            {today}
+            {homeTown ? ` · ${homeTown}` : ''}
           </Text>
           <View style={[styles.weatherChip, { backgroundColor: c.coralTint }]}>
             <Text style={[styles.weatherText, { color: c.coral }]}>☀️ {weather.summary}</Text>
           </View>
         </View>
-        <LinearGradient colors={['#2E6B4E', '#8FBF7E']} style={styles.avatar}>
-          <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
-        </LinearGradient>
+        <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Your profile">
+          <LinearGradient colors={['#2E6B4E', '#8FBF7E']} style={styles.avatar}>
+            <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+          </LinearGradient>
+        </Pressable>
       </View>
 
       {/* Hero nudge */}

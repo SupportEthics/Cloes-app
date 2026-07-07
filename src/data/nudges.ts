@@ -33,7 +33,7 @@ export function humanSince(date: Date): string {
 
 export type Nudge = {
   id: string;
-  kind: 'sunny' | 'longtime' | 'nearby' | 'rainy';
+  kind: 'sunny' | 'longtime' | 'todo' | 'rainy';
   icon: string;
   title: string;
   subtitle: string;
@@ -53,7 +53,7 @@ export function buildNudges(places: Place[]): Nudge[] {
         kind: 'sunny',
         icon: '☀️',
         title: 'Sunny today — revisit an outdoor favourite',
-        subtitle: `${outdoorFave.name} · ${outdoorFave.travelTime ?? 'nearby'}`,
+        subtitle: outdoorFave.location ? `${outdoorFave.name} · ${outdoorFave.location}` : outdoorFave.name,
         placeId: outdoorFave.id,
       });
     }
@@ -76,15 +76,15 @@ export function buildNudges(places: Place[]): Nudge[] {
     });
   }
 
-  // 3. Nearby bucket-list spots.
-  const nearbyBucket = places.filter((p) => p.status === 'not_yet' && p.tags.includes('nearby'));
-  if (nearbyBucket.length) {
+  // 3. Still on the to-do list.
+  const todo = places.filter((p) => p.status === 'not_yet');
+  if (todo.length) {
     nudges.push({
-      id: 'nearby',
-      kind: 'nearby',
-      icon: '📍',
-      title: `${nearbyBucket.length} bucket-list spot${nearbyBucket.length > 1 ? 's' : ''} nearby`,
-      subtitle: 'Still waiting on your list — all a short drive away',
+      id: 'todo',
+      kind: 'todo',
+      icon: '📌',
+      title: `${todo.length} ${todo.length > 1 ? 'places' : 'place'} still to explore`,
+      subtitle: 'On your to-do list, waiting for the right day',
     });
   }
 

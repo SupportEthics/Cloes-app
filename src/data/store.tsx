@@ -167,13 +167,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const current = places.find((p) => p.id === id);
         if (!current) return;
         const visit: Visit = { id: makeId('visit'), date: new Date().toISOString(), ...visitPartial };
-        const status: Status = current.status === 'not_yet' ? 'done' : current.status;
-        patchOne(id, (p) => ({ ...p, status, visits: [visit, ...p.visits] }));
-        if (useCloud && fid()) {
-          insertVisit(fid()!, id, visit)
-            .then(() => (status !== current.status ? cloudUpdatePlace(id, { status }) : undefined))
-            .catch(reload);
-        }
+        // Logging a visit records the date; the family picks the verdict themselves.
+        patchOne(id, (p) => ({ ...p, visits: [visit, ...p.visits] }));
+        if (useCloud && fid()) insertVisit(fid()!, id, visit).catch(reload);
       },
 
       addPhoto: (id, photo) => {

@@ -1,11 +1,11 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { STATUS_META, type Status } from '@/data/types';
+import { statusMeta, type Status } from '@/data/types';
 import { fontRounded, useTheme } from '@/theme';
 
 export function StatusPill({ status, style }: { status: Status; style?: StyleProp<ViewStyle> }) {
   const { c } = useTheme();
-  const meta = STATUS_META[status];
+  const meta = statusMeta(status);
   return (
     <View style={[styles.pill, { backgroundColor: c[meta.bg] }, style]}>
       <Text style={[styles.text, { color: c[meta.fg] }]}>{meta.short}</Text>

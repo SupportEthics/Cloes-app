@@ -7,7 +7,7 @@ import { useStore } from '@/data/store';
 import type { Place, Status, Tag } from '@/data/types';
 import { fontRounded, space, useTheme } from '@/theme';
 
-const STATUS_KEYS: Status[] = ['not_yet', 'done', 'would_again', 'wouldnt_again'];
+const STATUS_KEYS: Status[] = ['not_yet', 'would_again', 'might_again', 'wouldnt_again'];
 
 function matches(place: Place, key: string): boolean {
   if (key === 'all') return true;
@@ -22,13 +22,15 @@ export default function ListScreen() {
 
   const filters: ChipOption[] = [
     { key: 'all', label: `All ${places.length}` },
-    { key: 'not_yet', label: 'Not yet' },
+    { key: 'not_yet', label: '◦ To-do' },
     { key: 'would_again', label: '⭐ Would do again' },
+    { key: 'might_again', label: '🤔 Might do again' },
+    { key: 'wouldnt_again', label: "✗ Wouldn't do again" },
     { key: 'rainy', label: '🌧️ Rainy day' },
     { key: 'free', label: 'Free' },
     { key: 'toddler', label: 'Toddler-friendly' },
     { key: 'fullday', label: 'Full day' },
-    { key: 'nearby', label: 'Nearby' },
+    { key: 'other', label: 'Other' },
   ];
 
   const shown = useMemo(() => places.filter((p) => matches(p, filter)), [places, filter]);

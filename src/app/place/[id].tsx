@@ -11,10 +11,10 @@ import { humanSince } from '@/data/nudges';
 import { fontRounded, radius, space, useTheme, type Palette } from '@/theme';
 
 const VERDICTS: { key: Status; label: string; color: keyof Palette }[] = [
-  { key: 'not_yet', label: 'Not yet', color: 'amber' },
-  { key: 'done', label: 'Been & done', color: 'sky' },
+  { key: 'not_yet', label: 'To-do', color: 'amber' },
   { key: 'would_again', label: 'Would do again', color: 'primary' },
-  { key: 'wouldnt_again', label: "Wouldn't again", color: 'clay' },
+  { key: 'might_again', label: 'Might do again', color: 'sky' },
+  { key: 'wouldnt_again', label: "Wouldn't do again", color: 'clay' },
 ];
 
 export default function PlaceDetail() {
@@ -103,7 +103,7 @@ export default function PlaceDetail() {
           <View style={styles.statGrid}>
             <DStat k="Rating" v={rating ? `★ ${rating.toFixed(1)}` : '—'} color={c.star} />
             <DStat k="Cost" v={place.cost ?? '—'} />
-            <DStat k="Travel time" v={place.travelTime ? `${place.travelTime} 🚗` : '—'} />
+            {place.location ? <DStat k="Where" v={place.location} /> : null}
             <DStat k="Who came" v={recent?.companions?.join(', ') ?? '—'} />
           </View>
 
