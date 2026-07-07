@@ -128,6 +128,27 @@ export async function insertPhoto(familyId: string, placeId: string, photo: Phot
   if (error) throw error;
 }
 
+/**
+ * Upload a picked image to Supabase Storage and return its public URL, so the
+ * photo is saved for good and visible on every family member's device.
+ * `localUri` is the temporary reference from the image picker (a blob: URL on
+ * web, a file: URL on native) — we read the bytes and store them in the
+ * `photos` bucket (see supabase/storage.sql).
+ */
+export async function uploadPhotoFile(familyId: string, placeId: string, photoId: string, localUri: string): Promise<string> {
+  const c = client();
+  const resp = await fetch(localUri);
+  const blob = await resp.blob();
+  const ext = (blob.type && blob.type.split('/')[1]) || 'jpg';
+  const path = `${familyId}/${placeId}/${photoId}.${ext}`;
+  const { error } = await c.storage.from('photos').upload(path, blob, {
+    contentType: blob.type || 'image/jpeg',
+    upsert: true,
+  });
+  if (error) throw error;
+  return c.storage.from('photos').getPublicUrl(path).data.publicUrl;
+}
+
 export async function removePlace(id: string): Promise<void> {
   const { error } = await client().from('places').delete().eq('id', id);
   if (error) throw error;

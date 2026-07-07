@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { Screen } from '@/components/Screen';
 import { makeId } from '@/data/seed';
@@ -40,6 +40,8 @@ export default function AddScreen() {
   const [travel, setTravel] = useState('');
   const [note, setNote] = useState('');
   const [photoUris, setPhotoUris] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const toggleTag = (t: Tag) =>
     setTags((prev) => {
@@ -61,20 +63,27 @@ export default function AddScreen() {
   const canSave = name.trim().length > 0;
 
   const save = async () => {
-    if (!canSave) return;
-    const place = await addPlace({
-      name: name.trim(),
-      location: location.trim() || undefined,
-      emoji: VIBES[vibe].emoji,
-      gradient: VIBES[vibe].gradient,
-      status,
-      tags: Array.from(tags),
-      cost: cost.trim() || undefined,
-      travelTime: travel.trim() || undefined,
-      notes: note.trim() ? [note.trim()] : [],
-    });
-    photoUris.forEach((uri) => addPhoto(place.id, { id: makeId('photo'), uri }));
-    router.push('/list');
+    // Guard against double-taps creating duplicates.
+    if (!canSave || saving || saved) return;
+    setSaving(true);
+    try {
+      const place = await addPlace({
+        name: name.trim(),
+        location: location.trim() || undefined,
+        emoji: VIBES[vibe].emoji,
+        gradient: VIBES[vibe].gradient,
+        status,
+        tags: Array.from(tags),
+        cost: cost.trim() || undefined,
+        travelTime: travel.trim() || undefined,
+        notes: note.trim() ? [note.trim()] : [],
+      });
+      photoUris.forEach((uri) => addPhoto(place.id, { id: makeId('photo'), uri }));
+      setSaved(true); // show confirmation, then move to the list
+      setTimeout(() => router.replace('/list'), 1000);
+    } catch {
+      setSaving(false);
+    }
   };
 
   return (
@@ -191,11 +200,26 @@ export default function AddScreen() {
 
       <Pressable
         onPress={save}
-        disabled={!canSave}
-        style={[styles.cta, { backgroundColor: c.primary, opacity: canSave ? 1 : 0.45 }]}
+        disabled={!canSave || saving || saved}
+        style={[styles.cta, { backgroundColor: c.primary, opacity: canSave && !saving && !saved ? 1 : 0.5 }]}
       >
-        <Text style={[styles.ctaText, { color: c.onPrimary }]}>Save to our adventures</Text>
+        {saving ? (
+          <ActivityIndicator color={c.onPrimary} />
+        ) : (
+          <Text style={[styles.ctaText, { color: c.onPrimary }]}>Save to our adventures</Text>
+        )}
       </Pressable>
+
+      <Modal visible={saved} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={[styles.toast, { backgroundColor: c.card }]}>
+            <View style={[styles.tick, { backgroundColor: c.primary }]}>
+              <Text style={{ color: c.onPrimary, fontSize: 26, fontWeight: '800' }}>✓</Text>
+            </View>
+            <Text style={[styles.toastText, { color: c.ink }]}>Added to your adventures!</Text>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -241,6 +265,10 @@ const styles = StyleSheet.create({
   photoRow: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
   addPhoto: { width: 96, height: 96, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   photo: { width: 96, height: 96, borderRadius: 14 },
-  cta: { marginTop: space.xl, borderRadius: 16, padding: 16, alignItems: 'center' },
+  cta: { marginTop: space.xl, borderRadius: 16, padding: 16, alignItems: 'center', justifyContent: 'center', minHeight: 54 },
   ctaText: { fontSize: 15.5, fontWeight: '800', fontFamily: fontRounded },
+  overlay: { flex: 1, backgroundColor: 'rgba(20,31,27,0.45)', alignItems: 'center', justifyContent: 'center', padding: 40 },
+  toast: { borderRadius: 22, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center', gap: 14, maxWidth: 300 },
+  tick: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  toastText: { fontSize: 16, fontWeight: '800', fontFamily: fontRounded, textAlign: 'center' },
 });

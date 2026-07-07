@@ -10,6 +10,7 @@ export function SignIn() {
   const { c } = useTheme();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'in' | 'up'>('in');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,12 +20,16 @@ export function SignIn() {
   const submit = async () => {
     setError(null);
     setNotice(null);
+    if (mode === 'up' && !name.trim()) {
+      setError('Add your name so the app can greet you.');
+      return;
+    }
     if (!email.trim() || password.length < 6) {
       setError('Enter an email and a password of at least 6 characters.');
       return;
     }
     setBusy(true);
-    const res = mode === 'in' ? await signIn(email, password) : await signUp(email, password);
+    const res = mode === 'in' ? await signIn(email, password) : await signUp(email, password, name);
     setBusy(false);
     if (res.error) setError(res.error);
     else if (res.needsConfirmation) setNotice('Almost there — check your email to confirm, then sign in.');
@@ -40,6 +45,17 @@ export function SignIn() {
         <Text style={[styles.tag, { color: c.inkSoft }]}>Your family's adventure book</Text>
 
         <View style={styles.form}>
+          {mode === 'up' ? (
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor={c.inkFaint}
+              autoCapitalize="words"
+              autoComplete="name"
+              style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
+            />
+          ) : null}
           <TextInput
             value={email}
             onChangeText={setEmail}

@@ -3,18 +3,22 @@ import { useRouter } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/Screen';
+import { useAuth } from '@/data/auth';
 import { buildNudges, todayWeather } from '@/data/nudges';
 import { useStore } from '@/data/store';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 
-const FAMILY_NAME = 'Cloe';
 const HOME_TOWN = 'Ilkley';
 
 export default function HomeScreen() {
   const { c } = useTheme();
   const router = useRouter();
   const { places } = useStore();
+  const { user } = useAuth();
   const weather = todayWeather();
+
+  const displayName =
+    (user?.user_metadata?.display_name as string | undefined) || user?.email?.split('@')[0] || 'friend';
 
   const nudges = useMemo(() => buildNudges(places), [places]);
   const hero = nudges.find((n) => n.kind === 'sunny');
@@ -35,7 +39,7 @@ export default function HomeScreen() {
         <View style={{ flex: 1 }}>
           <Text style={[styles.h1, { color: c.ink }]}>
             {greeting},{'\n'}
-            {FAMILY_NAME} ☀️
+            {displayName} ☀️
           </Text>
           <Text style={[styles.sub, { color: c.inkSoft }]}>
             {today} · {HOME_TOWN}
@@ -45,7 +49,7 @@ export default function HomeScreen() {
           </View>
         </View>
         <LinearGradient colors={['#2E6B4E', '#8FBF7E']} style={styles.avatar}>
-          <Text style={styles.avatarText}>{FAMILY_NAME.charAt(0)}</Text>
+          <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
         </LinearGradient>
       </View>
 

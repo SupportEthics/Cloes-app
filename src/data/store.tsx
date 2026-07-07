@@ -10,6 +10,7 @@ import {
   loadPlaces,
   removePlace as cloudRemovePlace,
   updatePlace as cloudUpdatePlace,
+  uploadPhotoFile,
 } from './cloud';
 import { makeId, SEED_PLACES } from './seed';
 import { supabase } from './supabase';
@@ -176,8 +177,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       },
 
       addPhoto: (id, photo) => {
+        // Show the picked image immediately…
         patchOne(id, (p) => ({ ...p, photos: [...p.photos, photo] }));
-        if (useCloud && fid()) insertPhoto(fid()!, id, photo).catch(reload);
+        if (useCloud && fid()) {
+          // …then upload the file to Storage and save the permanent URL so it
+          // survives reloads and appears on every family member's phone.
+          (async () => {
+            try {
+              const stored: Photo = photo.uri
+                ? { ...photo, uri: await uploadPhotoFile(fid()!, id, photo.id, photo.uri) }
+                : photo;
+              patchOne(id, (p) => ({
+                ...p,
+                photos: p.photos.map((ph) => (ph.id === photo.id ? stored : ph)),
+              }));
+              await insertPhoto(fid()!, id, stored);
+            } catch {
+              reload();
+            }
+          })();
+        }
       },
 
       updatePlace: (id, patch) => {

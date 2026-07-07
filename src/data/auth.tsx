@@ -10,7 +10,7 @@ type AuthValue = {
   loading: boolean;
   cloud: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
-  signUp: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -54,9 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         return error ? { error: error.message } : {};
       },
-      signUp: async (email, password) => {
+      signUp: async (email, password, name) => {
         if (!supabase) return {};
-        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { data: { display_name: name.trim() } },
+        });
         if (error) return { error: error.message };
         // If email confirmation is on, there's no session until they confirm.
         return { needsConfirmation: !data.session };

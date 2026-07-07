@@ -63,7 +63,7 @@ To build installable App Store / Play Store binaries later: `npx expo run:ios` /
 Out of the box the app saves on your device only. To make one journal that **syncs across the family's phones with real logins**, connect a free Supabase project — no code changes needed:
 
 1. Create a free account and project at **[supabase.com](https://supabase.com)**.
-2. In the project, open the **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql), and click **Run**. This creates the tables, the security rules, and the invite-code functions.
+2. In the project, open the **SQL Editor**, paste the contents of [`supabase/schema.sql`](supabase/schema.sql), and click **Run**. This creates the tables, the security rules, and the invite-code functions. Then do the same with [`supabase/storage.sql`](supabase/storage.sql) to enable saving photos.
 3. In **Project Settings → API**, copy the **Project URL** and the **anon public key**.
 4. In the app folder, copy `.env.example` to `.env` and paste those two values in.
 5. Restart with `npx expo start`.
