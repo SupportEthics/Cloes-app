@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { Screen } from '@/components/Screen';
 import { makeId } from '@/data/seed';
@@ -35,7 +35,6 @@ export default function AddScreen() {
   const [cost, setCost] = useState('');
   const [note, setNote] = useState('');
   const [photoUris, setPhotoUris] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const toggleTag = (t: Tag) =>
@@ -59,8 +58,10 @@ export default function AddScreen() {
 
   const save = async () => {
     // Guard against double-taps creating duplicates.
-    if (!canSave || saving || saved) return;
-    setSaving(true);
+    if (!canSave || saved) return;
+    // Show the confirmation the instant Save is tapped — never gate it behind the
+    // network, so it always appears whether we're online, slow, or offline.
+    setSaved(true);
     try {
       const place = await addPlace({
         name: name.trim(),
@@ -73,14 +74,15 @@ export default function AddScreen() {
         notes: note.trim() ? [note.trim()] : [],
       });
       photoUris.forEach((uri) => addPhoto(place.id, { id: makeId('photo'), uri }));
-      setSaved(true); // show confirmation, then move to the list
-      setTimeout(() => router.replace('/list'), 1000);
     } catch {
-      setSaving(false);
+      // The place is already in the list optimistically; the cloud reconciles on reload.
     }
+    // Always move on to the list, even if the cloud write was slow or errored.
+    setTimeout(() => router.replace('/list'), 1100);
   };
 
   return (
+    <View style={{ flex: 1 }}>
     <Screen>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
@@ -183,18 +185,15 @@ export default function AddScreen() {
 
       <Pressable
         onPress={save}
-        disabled={!canSave || saving || saved}
-        style={[styles.cta, { backgroundColor: c.primary, opacity: canSave && !saving && !saved ? 1 : 0.5 }]}
+        disabled={!canSave || saved}
+        style={[styles.cta, { backgroundColor: c.primary, opacity: canSave && !saved ? 1 : 0.5 }]}
       >
-        {saving ? (
-          <ActivityIndicator color={c.onPrimary} />
-        ) : (
-          <Text style={[styles.ctaText, { color: c.onPrimary }]}>Save to our adventures</Text>
-        )}
+        <Text style={[styles.ctaText, { color: c.onPrimary }]}>Save to our adventures</Text>
       </Pressable>
+      </Screen>
 
-      <Modal visible={saved} transparent animationType="fade">
-        <View style={styles.overlay}>
+      {saved ? (
+        <View style={styles.overlay} pointerEvents="auto">
           <View style={[styles.toast, { backgroundColor: c.card }]}>
             <View style={[styles.tick, { backgroundColor: c.primary }]}>
               <Text style={{ color: c.onPrimary, fontSize: 26, fontWeight: '800' }}>✓</Text>
@@ -202,8 +201,8 @@ export default function AddScreen() {
             <Text style={[styles.toastText, { color: c.ink }]}>Added to your adventures!</Text>
           </View>
         </View>
-      </Modal>
-    </Screen>
+      ) : null}
+    </View>
   );
 }
 
@@ -250,7 +249,7 @@ const styles = StyleSheet.create({
   photo: { width: 96, height: 96, borderRadius: 14 },
   cta: { marginTop: space.xl, borderRadius: 16, padding: 16, alignItems: 'center', justifyContent: 'center', minHeight: 54 },
   ctaText: { fontSize: 15.5, fontWeight: '800', fontFamily: fontRounded },
-  overlay: { flex: 1, backgroundColor: 'rgba(20,31,27,0.45)', alignItems: 'center', justifyContent: 'center', padding: 40 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, backgroundColor: 'rgba(20,31,27,0.45)', alignItems: 'center', justifyContent: 'center', padding: 40 },
   toast: { borderRadius: 22, paddingVertical: 28, paddingHorizontal: 34, alignItems: 'center', gap: 14, maxWidth: 300 },
   tick: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   toastText: { fontSize: 16, fontWeight: '800', fontFamily: fontRounded, textAlign: 'center' },
