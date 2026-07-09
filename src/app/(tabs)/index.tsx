@@ -11,7 +11,7 @@ import { fontRounded, radius, space, useTheme } from '@/theme';
 export default function HomeScreen() {
   const { c } = useTheme();
   const router = useRouter();
-  const { places } = useStore();
+  const { places, cloudError, clearError } = useStore();
   const { user } = useAuth();
   const weather = todayWeather();
 
@@ -33,6 +33,13 @@ export default function HomeScreen() {
 
   return (
     <Screen>
+      {cloudError ? (
+        <Pressable onPress={clearError} style={[styles.errBanner, { backgroundColor: c.clayTint, borderColor: c.clay }]}>
+          <Text style={[styles.errText, { color: c.clay }]}>⚠️ {cloudError}</Text>
+          <Text style={[styles.errDismiss, { color: c.clay }]}>Tap to dismiss</Text>
+        </Pressable>
+      ) : null}
+
       {/* Greeting */}
       <View style={styles.greet}>
         <View style={{ flex: 1 }}>
@@ -147,6 +154,10 @@ const styles = StyleSheet.create({
   heroTitle: { color: '#fff', fontSize: 21, fontWeight: '800', marginTop: 8, maxWidth: '85%', fontFamily: fontRounded },
   heroPlace: { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, alignSelf: 'flex-start' },
   heroPlaceText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
+
+  errBanner: { borderWidth: 1, borderRadius: radius.sm, padding: 12, marginTop: 6 },
+  errText: { fontSize: 12.5, fontWeight: '700', lineHeight: 17 },
+  errDismiss: { fontSize: 11, marginTop: 4, opacity: 0.8 },
 
   discover: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.md, padding: 18 },
   discoverEmoji: { fontSize: 26 },

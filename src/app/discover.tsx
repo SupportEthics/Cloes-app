@@ -114,7 +114,7 @@ export default function DiscoverScreen() {
           <FilterChips options={RADII} active={radius} onChange={setRadius} />
           <FilterChips options={CATEGORIES} active={category} onChange={setCategory} />
 
-          <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
             {loading ? (
               <View style={styles.centre}>
                 <ActivityIndicator color={c.primary} />
