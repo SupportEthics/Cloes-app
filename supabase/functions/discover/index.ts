@@ -9,7 +9,7 @@
 // this → Deploy. Secret GOOGLE_PLACES_KEY must be set. Verify JWT: OFF.
 
 /** Bumped on every change; returned to the app so deploys are verifiable. */
-const FN_VERSION = 'd3';
+const FN_VERSION = 'd4';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +24,7 @@ const json = (body: Record<string, unknown>, status = 200) =>
   });
 
 const PLACES_URL = 'https://places.googleapis.com/v1/places:searchText';
+const NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 // Extra words we add to the search to bias results by category.
 const CATEGORY_QUERY: Record<string, string> = {
@@ -33,6 +34,18 @@ const CATEGORY_QUERY: Record<string, string> = {
   outdoors: 'outdoor',
   fullday: 'full day',
   other: '',
+};
+
+// Type-based nearby lookup: this is what finds the LOCAL places (playgrounds,
+// parks, farms, pools…) that the text search's famous-places bias misses.
+const NEARBY_TYPES: Record<string, string[]> = {
+  all: ['park', 'playground', 'zoo', 'farm', 'museum', 'amusement_park', 'amusement_center', 'aquarium', 'water_park', 'national_park', 'hiking_area', 'tourist_attraction', 'historical_landmark', 'library', 'swimming_pool', 'bowling_alley'],
+  rainy: ['museum', 'library', 'aquarium', 'amusement_center', 'bowling_alley', 'movie_theater', 'swimming_pool', 'art_gallery'],
+  toddler: ['playground', 'zoo', 'farm', 'aquarium', 'park', 'amusement_center'],
+  free: ['park', 'playground', 'national_park', 'hiking_area', 'library'],
+  outdoors: ['park', 'playground', 'national_park', 'hiking_area', 'farm', 'zoo'],
+  fullday: ['zoo', 'amusement_park', 'water_park', 'national_park', 'museum', 'tourist_attraction'],
+  other: ['tourist_attraction', 'historical_landmark', 'community_center'],
 };
 
 /** "cf453bd" → "CF45 3BD"; anything that isn't a UK postcode passes through. */
@@ -153,42 +166,61 @@ Deno.serve(async (req: Request) => {
 
     const hint = category && CATEGORY_QUERY[category] ? ` ${CATEGORY_QUERY[category]}` : '';
     const textQuery = `family friendly days out${hint} near ${cleanTown}`;
+    const FIELD_MASK =
+      'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos';
+    const circle = {
+      center: { latitude: centre.lat, longitude: centre.lng },
+      radius: Math.min(radius * 1609.34, 50000), // Google caps circles at 50km
+    };
+    const headers = { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELD_MASK };
 
-    const resp = await fetch(PLACES_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': key,
-        'X-Goog-FieldMask':
-          'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos',
-      },
-      body: JSON.stringify({
-        textQuery,
-        maxResultCount: 20,
-        languageCode: 'en',
-        regionCode: 'GB',
-        // Steer Google towards the area (max bias circle is 50km)…
-        locationBias: {
-          circle: {
-            center: { latitude: centre.lat, longitude: centre.lng },
-            radius: Math.min(radius * 1609.34, 50000),
-          },
-        },
+    // Two complementary searches, run together:
+    //  1) text search — Google's editorial "best days out" picks (biased local)
+    //  2) nearby-by-type — every park/playground/farm/museum/pool INSIDE the
+    //     circle, which is what keeps small-radius searches well stocked.
+    const nearbyTypes = NEARBY_TYPES[category ?? 'all'] ?? NEARBY_TYPES.all;
+    const [textResp, nearbyResp] = await Promise.all([
+      fetch(PLACES_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ textQuery, maxResultCount: 20, languageCode: 'en', regionCode: 'GB', locationBias: { circle } }),
       }),
-    });
+      fetch(NEARBY_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          includedTypes: nearbyTypes,
+          maxResultCount: 20,
+          rankPreference: 'POPULARITY',
+          languageCode: 'en',
+          regionCode: 'GB',
+          locationRestriction: { circle },
+        }),
+      }),
+    ]);
 
-    const data = await resp.json();
-    if (!resp.ok) return json({ error: data.error?.message ?? 'The search could not be completed.' }, 502);
+    const textData = await textResp.json();
+    const nearbyData = await nearbyResp.json();
+    if (!textResp.ok && !nearbyResp.ok) {
+      return json({ error: textData.error?.message ?? nearbyData.error?.message ?? 'The search could not be completed.' }, 502);
+    }
 
-    // …and strictly enforce the radius ourselves (bias alone isn't a guarantee).
+    // Merge (nearby first so genuinely-local places lead), dedupe by id, then
+    // strictly enforce the radius ourselves (bias alone isn't a guarantee).
     // deno-lint-ignore no-explicit-any
-    const raw: any[] = (data.places ?? []).filter((p: any) => {
+    const seen = new Set<string>();
+    // deno-lint-ignore no-explicit-any
+    const raw: any[] = [...(nearbyData.places ?? []), ...(textData.places ?? [])].filter((p: any) => {
+      if (!p.id || seen.has(p.id)) return false;
+      seen.add(p.id);
       const loc = p.location;
       if (!loc) return false;
       return milesBetween(centre, { lat: loc.latitude, lng: loc.longitude }) <= radius;
     });
 
-    const mapped = raw.map((p) => mapPlace(p));
+    // Best-rated first, keep a manageable list.
+    raw.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    const mapped = raw.slice(0, 24).map((p) => mapPlace(p));
 
     // Fetch a real photo for each result (in parallel; failures just fall back
     // to the app's gradient tiles).
