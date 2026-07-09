@@ -85,6 +85,10 @@ export default function ProfileScreen() {
             <Pressable onPress={signOut} style={styles.signout}>
               <Text style={[styles.signoutText, { color: c.clay }]}>Sign out</Text>
             </Pressable>
+
+            <Pressable onPress={() => router.push('/debug')} style={styles.signout}>
+              <Text style={[styles.signoutText, { color: c.inkFaint }]}>Run sync check</Text>
+            </Pressable>
           </>
         ) : (
           <Text style={[styles.note, { color: c.inkSoft }]}>

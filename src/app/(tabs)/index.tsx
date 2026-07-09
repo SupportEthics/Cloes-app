@@ -7,6 +7,7 @@ import { useAuth } from '@/data/auth';
 import { buildNudges, todayWeather } from '@/data/nudges';
 import { useStore } from '@/data/store';
 import { fontRounded, radius, space, useTheme } from '@/theme';
+import { BUILD } from '@/version';
 
 export default function HomeScreen() {
   const { c } = useTheme();
@@ -125,6 +126,8 @@ export default function HomeScreen() {
         <Stat n={onList} label="On the list" />
         <Stat n={photos} label="Photos kept" />
       </View>
+
+      <Text style={[styles.buildStamp, { color: c.inkFaint }]}>Trove {BUILD}</Text>
     </Screen>
   );
 }
@@ -176,6 +179,7 @@ const styles = StyleSheet.create({
   nudgeSub: { fontSize: 12.5, marginTop: 2 },
   chev: { fontSize: 22 },
 
+  buildStamp: { textAlign: 'center', fontSize: 11, marginTop: space.xl },
   stats: { flexDirection: 'row', gap: space.sm },
   stat: { flex: 1, borderRadius: radius.sm, borderWidth: 1, paddingVertical: 14, alignItems: 'center' },
   statN: { fontSize: 22, fontWeight: '800', fontFamily: fontRounded },

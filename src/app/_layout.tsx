@@ -31,6 +31,7 @@ function AppShell() {
         <Stack.Screen name="place/[id]" />
         <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
         <Stack.Screen name="discover" />
+        <Stack.Screen name="debug" />
       </Stack>
     </StoreProvider>
   );

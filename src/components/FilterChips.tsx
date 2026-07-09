@@ -18,6 +18,8 @@ export function FilterChips({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      // Never let a flexible sibling (e.g. a results list) squash the chip row.
+      style={{ flexGrow: 0, flexShrink: 0 }}
       contentContainerStyle={styles.row}
     >
       {options.map((opt) => {
