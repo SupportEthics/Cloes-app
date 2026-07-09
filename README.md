@@ -72,6 +72,18 @@ Now the app shows a **sign-in screen**. Each family member creates an account; t
 
 > Adding a place, a verdict, a visit or a note syncs in real time. Photo *files* still live on each device for now — syncing the images themselves (via Supabase Storage) is the next enhancement.
 
+## Discover (place recommendations)
+
+The **Discover** screen suggests family-friendly places near your home town via the Google Places API. The API key is kept **server-side** in a Supabase Edge Function so it never ships in the app.
+
+To switch it on:
+1. Create a Google Cloud project, enable **Places API (New)**, and make an API key (restrict it to Places API). Set a small budget cap.
+2. In Supabase → **Edge Functions**, create a function named **`discover`**, paste [`supabase/functions/discover/index.ts`](supabase/functions/discover/index.ts), and deploy it with **Verify JWT off**.
+3. Add a secret **`GOOGLE_PLACES_KEY`** = your key (Supabase → Edge Functions → Secrets).
+4. Set your **home town** in the app's Profile screen so Discover knows where to search.
+
+Costs are negligible at family scale (Google gives a few thousand free searches/month); the function only proxies searches and can be extended with caching for scale.
+
 ## Project structure
 
 ```

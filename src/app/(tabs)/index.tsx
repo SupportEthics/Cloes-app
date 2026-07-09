@@ -94,6 +94,18 @@ export default function HomeScreen() {
         </>
       ) : null}
 
+      {/* Discover */}
+      <Pressable onPress={() => router.push('/discover')} style={{ marginTop: 22 }}>
+        <LinearGradient colors={['#3FA07E', '#1F5A4C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.discover}>
+          <Text style={styles.discoverEmoji}>✨</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.discoverTitle}>Discover places near you</Text>
+            <Text style={styles.discoverSub}>Fresh family-friendly ideas to add to your list</Text>
+          </View>
+          <Text style={styles.discoverChev}>›</Text>
+        </LinearGradient>
+      </Pressable>
+
       {/* Year so far */}
       <View style={styles.sectionRow}>
         <Text style={[styles.sectionH, { color: c.ink, marginTop: 0 }]}>Your year so far</Text>
@@ -135,6 +147,12 @@ const styles = StyleSheet.create({
   heroTitle: { color: '#fff', fontSize: 21, fontWeight: '800', marginTop: 8, maxWidth: '85%', fontFamily: fontRounded },
   heroPlace: { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10, alignSelf: 'flex-start' },
   heroPlaceText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
+
+  discover: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.md, padding: 18 },
+  discoverEmoji: { fontSize: 26 },
+  discoverTitle: { color: '#fff', fontSize: 16, fontWeight: '800', fontFamily: fontRounded },
+  discoverSub: { color: 'rgba(255,255,255,0.9)', fontSize: 12.5, marginTop: 3 },
+  discoverChev: { color: 'rgba(255,255,255,0.9)', fontSize: 22 },
 
   sectionH: { fontSize: 17, fontWeight: '800', marginTop: 22, marginBottom: 12, fontFamily: fontRounded },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 22, marginBottom: 12 },
