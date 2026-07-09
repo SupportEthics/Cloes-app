@@ -1,8 +1,20 @@
 import type { Place } from './types';
 
-/** A short id helper (fine for local data; swap for uuid/db ids with Supabase). */
-export function makeId(prefix = 'id'): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+/**
+ * Id helper. Returns a real v4 UUID because the cloud database's id columns
+ * are uuid-typed — short prefixed ids get rejected by Postgres, which was
+ * silently blocking every cloud save. The prefix is accepted (and ignored)
+ * so existing call sites don't change.
+ */
+export function makeId(_prefix = 'id'): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c?.randomUUID) return c.randomUUID();
+  // Fallback v4 generator for runtimes without crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = (Math.random() * 16) | 0;
+    const v = ch === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 const now = Date.now();
