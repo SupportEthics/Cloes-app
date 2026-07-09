@@ -16,9 +16,9 @@ export type Suggestion = {
 };
 
 /** Ask the secure backend for family-friendly places near a town. */
-export async function discoverPlaces(town: string, category?: string): Promise<Suggestion[]> {
+export async function discoverPlaces(town: string, category?: string, radiusMiles?: number): Promise<Suggestion[]> {
   if (!supabase) throw new Error('Discover needs cloud sync switched on.');
-  const { data, error } = await supabase.functions.invoke('discover', { body: { town, category } });
+  const { data, error } = await supabase.functions.invoke('discover', { body: { town, category, radiusMiles } });
   if (error) throw new Error(error.message ?? 'Could not reach Discover.');
   if (data?.error) throw new Error(data.error);
   return (data?.places ?? []) as Suggestion[];

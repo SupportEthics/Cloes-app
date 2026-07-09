@@ -19,6 +19,13 @@ const CATEGORIES: ChipOption[] = [
   { key: 'fullday', label: '🕐 Full day' },
 ];
 
+const RADII: ChipOption[] = [
+  { key: '5', label: 'Within 5 mi' },
+  { key: '10', label: 'Within 10 mi' },
+  { key: '20', label: 'Within 20 mi' },
+  { key: '30', label: 'Within 30 mi' },
+];
+
 export default function DiscoverScreen() {
   const { c } = useTheme();
   const router = useRouter();
@@ -28,18 +35,19 @@ export default function DiscoverScreen() {
   const homeTown = (user?.user_metadata?.home_town as string | undefined) ?? '';
   const [area, setArea] = useState(homeTown);
   const [category, setCategory] = useState('all');
+  const [radius, setRadius] = useState('20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Suggestion[]>([]);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
   const search = useCallback(
-    async (town: string, cat: string) => {
+    async (town: string, cat: string, rad: string) => {
       if (!town.trim()) return;
       setLoading(true);
       setError(null);
       try {
-        setResults(await discoverPlaces(town.trim(), cat === 'all' ? undefined : cat));
+        setResults(await discoverPlaces(town.trim(), cat === 'all' ? undefined : cat, Number(rad)));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Something went wrong.');
         setResults([]);
@@ -50,17 +58,17 @@ export default function DiscoverScreen() {
     [],
   );
 
-  // Auto-search on open (and when the category changes) if we know the town.
+  // Auto-search on open (and when category/radius changes) if we know the town.
   useEffect(() => {
-    if (cloud && homeTown.trim()) search(homeTown, category);
+    if (cloud && homeTown.trim()) search(homeTown, category, radius);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, cloud]);
+  }, [category, radius, cloud]);
 
   const add = async (s: Suggestion) => {
     setAddedIds((prev) => new Set(prev).add(s.googleId));
     await addPlace({
       name: s.name,
-      location: area.trim() || undefined,
+      location: s.address || area.trim() || undefined,
       emoji: s.emoji,
       gradient: s.gradient,
       status: 'not_yet',
@@ -95,14 +103,15 @@ export default function DiscoverScreen() {
               onChangeText={setArea}
               placeholder="Town or area"
               placeholderTextColor={c.inkFaint}
-              onSubmitEditing={() => search(area, category)}
+              onSubmitEditing={() => search(area, category, radius)}
               style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
             />
-            <Pressable onPress={() => search(area, category)} style={[styles.searchBtn, { backgroundColor: c.primary }]}>
+            <Pressable onPress={() => search(area, category, radius)} style={[styles.searchBtn, { backgroundColor: c.primary }]}>
               <Text style={{ color: c.onPrimary, fontWeight: '800', fontFamily: fontRounded }}>Find</Text>
             </Pressable>
           </View>
 
+          <FilterChips options={RADII} active={radius} onChange={setRadius} />
           <FilterChips options={CATEGORIES} active={category} onChange={setCategory} />
 
           <ScrollView contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
@@ -114,14 +123,14 @@ export default function DiscoverScreen() {
             ) : error ? (
               <View style={styles.centre}>
                 <Text style={[styles.muted, { color: c.clay, textAlign: 'center' }]}>{error}</Text>
-                <Pressable onPress={() => search(area, category)} style={[styles.retry, { borderColor: c.line }]}>
+                <Pressable onPress={() => search(area, category, radius)} style={[styles.retry, { borderColor: c.line }]}>
                   <Text style={{ color: c.primary, fontWeight: '700' }}>Try again</Text>
                 </Pressable>
               </View>
             ) : results.length === 0 ? (
               <View style={styles.centre}>
                 <Text style={[styles.muted, { color: c.inkSoft, textAlign: 'center' }]}>
-                  {area.trim() ? 'No ideas yet — try a nearby town or a different filter.' : 'Type a town above to find ideas.'}
+                  {area.trim() ? 'No ideas yet — try a bigger radius or a different filter.' : 'Type a town above to find ideas.'}
                 </Text>
               </View>
             ) : (
