@@ -9,7 +9,7 @@
 // this → Deploy. Secret GOOGLE_PLACES_KEY must be set. Verify JWT: OFF.
 
 /** Bumped on every change; returned to the app so deploys are verifiable. */
-const FN_VERSION = 'd7';
+const FN_VERSION = 'd8';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -174,21 +174,31 @@ function milesBetween(a: { lat: number; lng: number }, b: { lat: number; lng: nu
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-// Find the search area's centre point (one lightweight Places lookup).
-async function geocodeTown(town: string, key: string): Promise<{ lat: number; lng: number } | null> {
+// Find the search area's centre point (one lightweight Places lookup), plus a
+// human-readable label so the app can SHOW where it actually searched.
+async function geocodeTown(
+  town: string,
+  key: string,
+): Promise<{ lat: number; lng: number; label: string } | null> {
   const resp = await fetch(PLACES_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': key,
-      'X-Goog-FieldMask': 'places.location',
+      'X-Goog-FieldMask': 'places.location,places.formattedAddress,places.displayName',
     },
     body: JSON.stringify({ textQuery: town, maxResultCount: 1, languageCode: 'en', regionCode: 'GB' }),
   });
   if (!resp.ok) return null;
   const data = await resp.json();
-  const loc = data.places?.[0]?.location;
-  return loc ? { lat: loc.latitude, lng: loc.longitude } : null;
+  const place = data.places?.[0];
+  const loc = place?.location;
+  if (!loc) return null;
+  return {
+    lat: loc.latitude,
+    lng: loc.longitude,
+    label: place.formattedAddress ?? place.displayName?.text ?? town,
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -301,7 +311,7 @@ Deno.serve(async (req: Request) => {
       }),
     );
 
-    return json({ places: mapped });
+    return json({ places: mapped, searchedNear: centre.label });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Something went wrong.' }, 500);
   }

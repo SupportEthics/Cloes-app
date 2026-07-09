@@ -21,6 +21,8 @@ export type DiscoverResult = {
   places: Suggestion[];
   /** Version of the deployed backend function — lets the app flag stale deploys. */
   service?: string;
+  /** The resolved location Google actually searched around (transparency). */
+  searchedNear?: string;
 };
 
 /** Richer on-demand info for one place (shown in the preview sheet). */
@@ -59,5 +61,9 @@ export async function discoverPlaces(town: string, categories: string[], radiusM
     throw new Error(msg);
   }
   if (data?.error) throw new Error(data.error);
-  return { places: (data?.places ?? []) as Suggestion[], service: data?.fnVersion as string | undefined };
+  return {
+    places: (data?.places ?? []) as Suggestion[],
+    service: data?.fnVersion as string | undefined,
+    searchedNear: data?.searchedNear as string | undefined,
+  };
 }

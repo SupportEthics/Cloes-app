@@ -49,6 +49,7 @@ export default function DiscoverScreen() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Suggestion[]>([]);
   const [service, setService] = useState<string | undefined>();
+  const [searchedNear, setSearchedNear] = useState<string | undefined>();
   const [searched, setSearched] = useState(false);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<Suggestion | null>(null);
@@ -72,6 +73,7 @@ export default function DiscoverScreen() {
       const res = await discoverPlaces(town.trim(), selected, Number(rad));
       setResults(res.places);
       setService(res.service);
+      setSearchedNear(res.searchedNear);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
       setResults([]);
@@ -81,9 +83,10 @@ export default function DiscoverScreen() {
     }
   }, []);
 
-  // Auto-search on open (and when filters/radius change) if we know the town.
+  // Auto-search on open (and when filters/radius change) — always with what's
+  // in the search box, never the saved home town behind the user's back.
   useEffect(() => {
-    if (cloud && homeTown.trim()) search(homeTown, cats, radiusMi);
+    if (cloud && area.trim()) search(area, cats, radiusMi);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cats.join(','), radiusMi, cloud]);
 
@@ -147,6 +150,9 @@ export default function DiscoverScreen() {
           <FilterChips options={CATEGORIES} active={cats.length ? cats : 'all'} onChange={toggleCat} />
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
+            {!loading && searchedNear && results.length > 0 ? (
+              <Text style={[styles.nearLine, { color: c.inkSoft }]}>📍 Near {searchedNear}</Text>
+            ) : null}
             {loading ? (
               <View style={styles.centre}>
                 <ActivityIndicator color={c.primary} />
@@ -319,6 +325,7 @@ const styles = StyleSheet.create({
   metaItem: { fontSize: 12.5, fontWeight: '600' },
   previewHint: { marginTop: 12, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
   service: { textAlign: 'center', fontSize: 11.5, marginTop: 6, lineHeight: 16 },
+  nearLine: { fontSize: 12.5, fontWeight: '600' },
 
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(20,31,27,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   sheet: { width: '100%', maxWidth: 420, borderRadius: radius.lg, borderWidth: 1, overflow: 'hidden' },
