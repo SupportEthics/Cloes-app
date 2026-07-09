@@ -23,6 +23,25 @@ export type DiscoverResult = {
   service?: string;
 };
 
+/** Richer on-demand info for one place (shown in the preview sheet). */
+export type PlaceDetails = {
+  summary?: string;
+  review?: { text: string; author: string; rating?: number };
+  website?: string;
+};
+
+/** Fetch one place's description / top review / website via the backend. */
+export async function fetchPlaceDetails(googleId: string): Promise<PlaceDetails | null> {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.functions.invoke('discover', { body: { detailsFor: googleId } });
+    if (error || data?.error) return null;
+    return (data?.details ?? null) as PlaceDetails | null;
+  } catch {
+    return null;
+  }
+}
+
 /** Ask the secure backend for family-friendly places near a town. */
 export async function discoverPlaces(town: string, category?: string, radiusMiles?: number): Promise<DiscoverResult> {
   if (!supabase) throw new Error('Discover needs cloud sync switched on.');

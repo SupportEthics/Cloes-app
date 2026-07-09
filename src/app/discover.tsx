@@ -1,11 +1,11 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { useAuth } from '@/data/auth';
-import { discoverPlaces, type Suggestion } from '@/data/discover';
+import { discoverPlaces, fetchPlaceDetails, type PlaceDetails, type Suggestion } from '@/data/discover';
 import { makeId } from '@/data/seed';
 import { useStore } from '@/data/store';
 import { TAG_META } from '@/data/types';
@@ -44,6 +44,17 @@ export default function DiscoverScreen() {
   const [searched, setSearched] = useState(false);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<Suggestion | null>(null);
+  const [details, setDetails] = useState<Record<string, PlaceDetails | 'loading' | 'none'>>({});
+
+  // When a preview opens, fetch that place's richer info (description, top
+  // review, website) once and cache it for the session.
+  useEffect(() => {
+    const id = preview?.googleId;
+    if (!id || details[id]) return;
+    setDetails((prev) => ({ ...prev, [id]: 'loading' }));
+    fetchPlaceDetails(id).then((d) => setDetails((prev) => ({ ...prev, [id]: d ?? 'none' })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview?.googleId]);
 
   const search = useCallback(async (town: string, cat: string, rad: string) => {
     if (!town.trim()) return;
@@ -70,6 +81,8 @@ export default function DiscoverScreen() {
 
   const add = async (s: Suggestion) => {
     setAddedIds((prev) => new Set(prev).add(s.googleId));
+    const det = details[s.googleId];
+    const bestSummary = s.summary ?? (typeof det === 'object' ? det?.summary : undefined);
     const place = await addPlace({
       name: s.name,
       location: s.address || area.trim() || undefined,
@@ -79,7 +92,7 @@ export default function DiscoverScreen() {
       tags: s.tags,
       cost: s.cost,
       googleRating: s.rating,
-      notes: s.summary ? [s.summary] : [],
+      notes: bestSummary ? [bestSummary] : [],
     });
     // Keep the real photo with the saved place.
     if (s.photoUrl) addPhoto(place.id, { id: makeId('photo'), uri: s.photoUrl });
@@ -223,9 +236,36 @@ export default function DiscoverScreen() {
                 ))}
               </View>
 
-              <Text style={[styles.summary, { color: c.inkSoft }]}>
-                {preview.summary ?? 'No description available — a mystery worth exploring? 🕵️'}
-              </Text>
+              {(() => {
+                const det = details[preview.googleId];
+                const loadingDet = det === 'loading';
+                const rich = typeof det === 'object' && det !== null ? det : undefined;
+                const summary = preview.summary ?? rich?.summary;
+                return (
+                  <>
+                    <Text style={[styles.summary, { color: c.inkSoft }]}>
+                      {summary ??
+                        (loadingDet ? 'Fetching details…' : 'No description on Google — a mystery worth exploring? 🕵️')}
+                    </Text>
+                    {rich?.review ? (
+                      <View style={[styles.review, { backgroundColor: c.card2 }]}>
+                        <Text style={[styles.reviewText, { color: c.ink }]} numberOfLines={5}>
+                          “{rich.review.text}”
+                        </Text>
+                        <Text style={[styles.reviewBy, { color: c.inkFaint }]}>
+                          — {rich.review.author}
+                          {rich.review.rating ? ` · ★ ${rich.review.rating}` : ''} (Google review)
+                        </Text>
+                      </View>
+                    ) : null}
+                    {rich?.website ? (
+                      <Pressable onPress={() => Linking.openURL(rich.website!)} style={styles.website}>
+                        <Text style={{ color: c.sky, fontWeight: '700', fontSize: 13.5 }}>🔗 Visit website</Text>
+                      </Pressable>
+                    ) : null}
+                  </>
+                );
+              })()}
 
               <Pressable
                 onPress={() => {
@@ -275,6 +315,10 @@ const styles = StyleSheet.create({
   tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
   tagChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   summary: { fontSize: 13.5, lineHeight: 19, marginTop: 12 },
+  review: { borderRadius: 12, padding: 12, marginTop: 12 },
+  reviewText: { fontSize: 13, lineHeight: 18.5, fontStyle: 'italic' },
+  reviewBy: { fontSize: 11.5, marginTop: 6 },
+  website: { marginTop: 12, alignSelf: 'flex-start' },
   sheetCta: { marginTop: 16, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   sheetClose: { alignItems: 'center', paddingVertical: 12 },
 });

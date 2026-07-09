@@ -9,7 +9,7 @@
 // this → Deploy. Secret GOOGLE_PLACES_KEY must be set. Verify JWT: OFF.
 
 /** Bumped on every change; returned to the app so deploys are verifiable. */
-const FN_VERSION = 'd4';
+const FN_VERSION = 'd5';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -118,6 +118,33 @@ async function resolvePhoto(name: string, key: string): Promise<string | undefin
   }
 }
 
+// Fetch one place's richer details on demand (when the user opens a preview):
+// human description if Google has one, else their AI overview, plus a top
+// review quote and the website. Field support varies, so fall back gracefully.
+async function placeDetails(id: string, key: string) {
+  const get = (mask: string) =>
+    fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}`, {
+      headers: { 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': mask },
+    });
+  let r = await get('editorialSummary,generativeSummary,reviews,websiteUri');
+  if (r.status === 400) r = await get('editorialSummary,reviews,websiteUri'); // generativeSummary not available everywhere
+  if (!r.ok) return null;
+  const d = await r.json();
+  const review = d.reviews?.[0];
+  const reviewText = review?.text?.text ?? review?.originalText?.text;
+  return {
+    summary: d.editorialSummary?.text ?? d.generativeSummary?.overview?.text ?? undefined,
+    review: reviewText
+      ? {
+          text: String(reviewText).slice(0, 280),
+          author: review?.authorAttribution?.displayName ?? 'a Google visitor',
+          rating: typeof review?.rating === 'number' ? review.rating : undefined,
+        }
+      : undefined,
+    website: d.websiteUri ?? undefined,
+  };
+}
+
 // Great-circle distance in miles between two lat/lng points.
 function milesBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 3958.8;
@@ -149,11 +176,19 @@ async function geocodeTown(town: string, key: string): Promise<{ lat: number; ln
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { town, category, radiusMiles } = await req.json().catch(() => ({}));
-    if (!town || !String(town).trim()) return json({ error: 'Set your home town first, then try again.' }, 400);
+    const { town, category, radiusMiles, detailsFor } = await req.json().catch(() => ({}));
 
     const key = Deno.env.get('GOOGLE_PLACES_KEY');
     if (!key) return json({ error: 'The places service is not configured yet.' }, 500);
+
+    // Detail lookups (preview sheet) are their own tiny request.
+    if (detailsFor) {
+      const details = await placeDetails(String(detailsFor), key);
+      if (!details) return json({ error: "Couldn't fetch details for that place." }, 502);
+      return json({ details });
+    }
+
+    if (!town || !String(town).trim()) return json({ error: 'Set your home town first, then try again.' }, 400);
 
     const cleanTown = normalizeUkPostcode(String(town));
     const radius = Math.min(Math.max(Number(radiusMiles) || 20, 1), 60);
