@@ -72,7 +72,24 @@ function mapPlace(p: any) {
     tags: Array.from(tags),
     gradient: look.gradient,
     emoji: look.emoji,
+    photoName: p.photos?.[0]?.name as string | undefined,
+    photoUrl: undefined as string | undefined,
   };
+}
+
+// Resolve a Google photo reference to a plain image URL the app can display
+// (skipHttpRedirect returns the googleusercontent link WITHOUT exposing our key).
+async function resolvePhoto(name: string, key: string): Promise<string | undefined> {
+  try {
+    const r = await fetch(`https://places.googleapis.com/v1/${name}/media?maxWidthPx=800&skipHttpRedirect=true`, {
+      headers: { 'X-Goog-Api-Key': key },
+    });
+    if (!r.ok) return undefined;
+    const j = await r.json();
+    return typeof j.photoUri === 'string' ? j.photoUri : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 // Great-circle distance in miles between two lat/lng points.
@@ -122,7 +139,7 @@ Deno.serve(async (req: Request) => {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': key,
         'X-Goog-FieldMask':
-          'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary',
+          'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos',
       },
       body: JSON.stringify({ textQuery, maxResultCount: 20, languageCode: 'en' }),
     });
@@ -146,7 +163,18 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return json({ places: raw.map((p) => mapPlace(p)) });
+    const mapped = raw.map((p) => mapPlace(p));
+
+    // Fetch a real photo for each result (in parallel; failures just fall back
+    // to the app's gradient tiles).
+    await Promise.all(
+      mapped.map(async (m) => {
+        if (m.photoName) m.photoUrl = await resolvePhoto(m.photoName, key);
+        delete (m as { photoName?: string }).photoName;
+      }),
+    );
+
+    return json({ places: mapped });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Something went wrong.' }, 500);
   }

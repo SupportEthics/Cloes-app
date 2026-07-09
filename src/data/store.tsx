@@ -203,10 +203,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (useCloud && fid()) {
           // …then upload the file to Storage and save the permanent URL so it
           // survives reloads and appears on every family member's phone.
+          // (Already-remote URLs — e.g. Google place photos — save as-is.)
           (async () => {
             try {
-              const stored: Photo = photo.uri
-                ? { ...photo, uri: await uploadPhotoFile(fid()!, id, photo.id, photo.uri) }
+              const needsUpload = !!photo.uri && !photo.uri.startsWith('http');
+              const stored: Photo = needsUpload
+                ? { ...photo, uri: await uploadPhotoFile(fid()!, id, photo.id, photo.uri!) }
                 : photo;
               patchOne(id, (p) => ({
                 ...p,

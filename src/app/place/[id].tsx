@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { makeId } from '@/data/seed';
@@ -41,6 +41,26 @@ export default function PlaceDetail() {
   const last = lastVisit(place);
   const rating = averageRating(place);
   const recent = place.visits[0];
+  const heroUri = place.photos.find((ph) => ph.uri)?.uri;
+
+  const heroButtons = (
+    <>
+      <Pressable
+        onPress={() => router.back()}
+        style={[styles.circleBtn, { top: insets.top + 6, left: 16 }]}
+        accessibilityLabel="Back"
+      >
+        <Text style={styles.circleIcon}>‹</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => setHearted((h) => !h)}
+        style={[styles.circleBtn, { top: insets.top + 6, right: 16 }]}
+        accessibilityLabel="Favourite"
+      >
+        <Text style={{ fontSize: 17 }}>{hearted ? '❤️' : '🤍'}</Text>
+      </Pressable>
+    </>
+  );
 
   const addPhotos = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, selectionLimit: 4, allowsMultipleSelection: true });
@@ -51,22 +71,15 @@ export default function PlaceDetail() {
     <View style={{ flex: 1, backgroundColor: c.surface }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
         {/* Hero */}
-        <GradientPhoto gradient={place.gradient} emoji={place.emoji} fontSize={82} height={250}>
-          <Pressable
-            onPress={() => router.back()}
-            style={[styles.circleBtn, { top: insets.top + 6, left: 16 }]}
-            accessibilityLabel="Back"
-          >
-            <Text style={styles.circleIcon}>‹</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setHearted((h) => !h)}
-            style={[styles.circleBtn, { top: insets.top + 6, right: 16 }]}
-            accessibilityLabel="Favourite"
-          >
-            <Text style={{ fontSize: 17 }}>{hearted ? '❤️' : '🤍'}</Text>
-          </Pressable>
-        </GradientPhoto>
+        {heroUri ? (
+          <ImageBackground source={{ uri: heroUri }} style={{ height: 250 }} resizeMode="cover">
+            {heroButtons}
+          </ImageBackground>
+        ) : (
+          <GradientPhoto gradient={place.gradient} emoji={place.emoji} fontSize={82} height={250}>
+            {heroButtons}
+          </GradientPhoto>
+        )}
 
         <View style={styles.body}>
           <Text style={[styles.name, { color: c.ink }]}>{place.name}</Text>

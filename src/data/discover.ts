@@ -13,6 +13,8 @@ export type Suggestion = {
   tags: Tag[];
   gradient: GradientKey;
   emoji: string;
+  /** A real photo of the place (resolved server-side; no API key involved). */
+  photoUrl?: string;
 };
 
 /** Ask the secure backend for family-friendly places near a town. */

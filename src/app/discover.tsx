@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { useAuth } from '@/data/auth';
 import { discoverPlaces, type Suggestion } from '@/data/discover';
+import { makeId } from '@/data/seed';
 import { useStore } from '@/data/store';
 import { TAG_META } from '@/data/types';
 import { fontRounded, radius, space, useTheme } from '@/theme';
@@ -30,7 +31,7 @@ export default function DiscoverScreen() {
   const { c } = useTheme();
   const router = useRouter();
   const { user, cloud } = useAuth();
-  const { addPlace, places } = useStore();
+  const { addPlace, addPhoto, places } = useStore();
 
   const homeTown = (user?.user_metadata?.home_town as string | undefined) ?? '';
   const [area, setArea] = useState(homeTown);
@@ -66,7 +67,7 @@ export default function DiscoverScreen() {
 
   const add = async (s: Suggestion) => {
     setAddedIds((prev) => new Set(prev).add(s.googleId));
-    await addPlace({
+    const place = await addPlace({
       name: s.name,
       location: s.address || area.trim() || undefined,
       emoji: s.emoji,
@@ -76,6 +77,8 @@ export default function DiscoverScreen() {
       cost: s.cost,
       notes: s.summary ? [s.summary] : [],
     });
+    // Keep the real photo with the saved place.
+    if (s.photoUrl) addPhoto(place.id, { id: makeId('photo'), uri: s.photoUrl });
   };
 
   const alreadyOnList = (s: Suggestion) => places.some((p) => p.name === s.name);
@@ -138,7 +141,11 @@ export default function DiscoverScreen() {
                 const added = addedIds.has(s.googleId) || alreadyOnList(s);
                 return (
                   <View key={s.googleId} style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]}>
-                    <GradientPhoto gradient={s.gradient} emoji={s.emoji} fontSize={40} height={104} />
+                    {s.photoUrl ? (
+                      <Image source={{ uri: s.photoUrl }} style={{ height: 140, width: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <GradientPhoto gradient={s.gradient} emoji={s.emoji} fontSize={40} height={104} />
+                    )}
                     <View style={{ padding: 14 }}>
                       <Text style={[styles.name, { color: c.ink }]}>{s.name}</Text>
                       {s.address ? <Text style={[styles.addr, { color: c.inkSoft }]} numberOfLines={1}>📍 {s.address}</Text> : null}

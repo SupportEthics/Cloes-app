@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
 import { averageRating, TAG_META, type Place } from '@/data/types';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 import { GradientPhoto } from './GradientPhoto';
@@ -10,6 +10,14 @@ export function PlaceCard({ place }: { place: Place }) {
   const { c } = useTheme();
   const router = useRouter();
   const rating = averageRating(place);
+  const heroUri = place.photos.find((ph) => ph.uri)?.uri;
+
+  const overlay = (
+    <>
+      <StatusPill status={place.status} style={styles.pill} />
+      {place.status === 'would_again' ? <Text style={styles.heart}>❤️</Text> : null}
+    </>
+  );
 
   return (
     <Pressable
@@ -19,10 +27,15 @@ export function PlaceCard({ place }: { place: Place }) {
         { backgroundColor: c.card, borderColor: c.line, transform: [{ scale: pressed ? 0.985 : 1 }] },
       ]}
     >
-      <GradientPhoto gradient={place.gradient} emoji={place.emoji} fontSize={46} height={118}>
-        <StatusPill status={place.status} style={styles.pill} />
-        {place.status === 'would_again' ? <Text style={styles.heart}>❤️</Text> : null}
-      </GradientPhoto>
+      {heroUri ? (
+        <ImageBackground source={{ uri: heroUri }} style={{ height: 118 }} resizeMode="cover">
+          {overlay}
+        </ImageBackground>
+      ) : (
+        <GradientPhoto gradient={place.gradient} emoji={place.emoji} fontSize={46} height={118}>
+          {overlay}
+        </GradientPhoto>
+      )}
 
       <View style={styles.body}>
         <Text style={[styles.name, { color: c.ink }]}>{place.name}</Text>
