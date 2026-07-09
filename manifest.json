@@ -1,0 +1,13 @@
+{
+  "name": "Trove — Family Adventures",
+  "short_name": "Trove",
+  "start_url": "/Cloes-app/",
+  "scope": "/Cloes-app/",
+  "display": "standalone",
+  "background_color": "#FBF8F2",
+  "theme_color": "#1F5A4C",
+  "icons": [
+    { "src": "/Cloes-app/icon.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/Cloes-app/icon.png", "sizes": "192x192", "type": "image/png" }
+  ]
+}
