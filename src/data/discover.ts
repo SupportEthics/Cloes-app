@@ -44,10 +44,11 @@ export async function fetchPlaceDetails(googleId: string): Promise<PlaceDetails 
   }
 }
 
-/** Look up a specific place by name (no radius — you already know it exists). */
-export async function discoverByName(name: string): Promise<DiscoverResult> {
+/** Look up a specific place by (partial) name. The area biases results local
+ *  ("Meadows" finds the nearby Meadows Wildlife Park first) but doesn't limit them. */
+export async function discoverByName(name: string, town?: string, radiusMiles?: number): Promise<DiscoverResult> {
   if (!supabase) throw new Error('Discover needs cloud sync switched on.');
-  const { data, error } = await supabase.functions.invoke('discover', { body: { nameQuery: name } });
+  const { data, error } = await supabase.functions.invoke('discover', { body: { nameQuery: name, town, radiusMiles } });
   if (error) {
     let msg = 'Could not reach Discover.';
     try {

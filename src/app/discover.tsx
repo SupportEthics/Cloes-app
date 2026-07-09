@@ -71,6 +71,7 @@ export default function DiscoverScreen() {
     if (!town.trim()) return;
     setLoading(true);
     setError(null);
+    setLastMode('area');
     try {
       const res = await discoverPlaces(town.trim(), selected, Number(rad));
       setResults(res.places);
@@ -96,14 +97,16 @@ export default function DiscoverScreen() {
   const toggleCat = (key: string) =>
     setCats((prev) => (key === 'all' ? [] : prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
-  // "I already know the place" — search by name, anywhere.
+  // "I already know the place" — search by (partial) name, biased to the area.
   const [nameQuery, setNameQuery] = useState('');
+  const [lastMode, setLastMode] = useState<'area' | 'name'>('area');
   const searchByName = async () => {
     if (!nameQuery.trim()) return;
     setLoading(true);
     setError(null);
+    setLastMode('name');
     try {
-      const res = await discoverByName(nameQuery.trim());
+      const res = await discoverByName(nameQuery.trim(), area.trim() || undefined, Number(radiusMi));
       setResults(res.places);
       setService(res.service);
       setSearchedNear(res.searchedNear);
@@ -206,9 +209,11 @@ export default function DiscoverScreen() {
             ) : results.length === 0 ? (
               <View style={styles.centre}>
                 <Text style={[styles.muted, { color: c.inkSoft, textAlign: 'center' }]}>
-                  {searched
-                    ? 'No ideas within that radius — try widening it or a different filter.'
-                    : 'Type a town or postcode above to find ideas.'}
+                  {!searched
+                    ? 'Type a town or postcode above to find ideas.'
+                    : lastMode === 'name'
+                      ? 'Nothing found for that name — try more of the full name (e.g. “Meadows Wildlife Park”).'
+                      : 'No ideas within that radius — try widening it or a different filter.'}
                 </Text>
               </View>
             ) : (

@@ -11,7 +11,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 /** Bumped on every change; returned to the app so deploys are verifiable. */
-const FN_VERSION = 'd9';
+const FN_VERSION = 'd10';
 
 // ---------------------------------------------------------------------------
 // Cache: recent searches + place details live in the project's own database
@@ -104,6 +104,31 @@ const NEARBY_TYPES: Record<string, string[]> = {
 
 /** Kind chips read better as the subject of the search ("family friendly castles near…"). */
 const KINDS = new Set(['woods', 'beach', 'farm', 'castle', 'play', 'museum', 'park']);
+
+/** Places Google sometimes deems "family friendly" that are NOT days out —
+ * nurseries, schools, clinics, offices. Results with these types are dropped. */
+const NOISE_TYPES = new Set([
+  'preschool',
+  'child_care_agency',
+  'primary_school',
+  'secondary_school',
+  'school',
+  'university',
+  'doctor',
+  'dentist',
+  'hospital',
+  'physiotherapist',
+  'veterinary_care',
+  'real_estate_agency',
+  'insurance_agency',
+  'lawyer',
+  'accounting',
+  'corporate_office',
+  'car_dealer',
+  'car_repair',
+  'church',
+  'funeral_home',
+]);
 
 /** "cf453bd" → "CF45 3BD"; anything that isn't a UK postcode passes through. */
 function normalizeUkPostcode(s: string): string {
@@ -259,12 +284,28 @@ Deno.serve(async (req: Request) => {
       return json({ details });
     }
 
-    // Name search: "I already know the place" — find it anywhere, no radius.
+    // Name search: "I already know the place" — partial names welcome. Results
+    // are BIASED towards the family's area (so "Meadows" finds the local
+    // Meadows Wildlife Park first) but never restricted to it.
     if (nameQuery && String(nameQuery).trim()) {
       const q = String(nameQuery).trim();
-      const nameKey = `name|${q.toLowerCase()}`;
+      const biasTown = town && String(town).trim() ? normalizeUkPostcode(String(town)) : null;
+      const nameKey = `name|${q.toLowerCase()}|${biasTown?.toLowerCase() ?? ''}`;
       const cachedName = await cacheGet(nameKey, SEARCH_FRESH_MS);
       if (cachedName) return json({ ...cachedName, cached: true });
+
+      let locationBias: Record<string, unknown> | undefined;
+      if (biasTown) {
+        const centre = await geocodeTown(biasTown, key);
+        if (centre) {
+          locationBias = {
+            circle: {
+              center: { latitude: centre.lat, longitude: centre.lng },
+              radius: Math.min((Number(radiusMiles) || 20) * 1609.34, 50000),
+            },
+          };
+        }
+      }
 
       const resp = await fetch(PLACES_URL, {
         method: 'POST',
@@ -274,7 +315,13 @@ Deno.serve(async (req: Request) => {
           'X-Goog-FieldMask':
             'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos',
         },
-        body: JSON.stringify({ textQuery: q, maxResultCount: 10, languageCode: 'en', regionCode: 'GB' }),
+        body: JSON.stringify({
+          textQuery: q,
+          maxResultCount: 10,
+          languageCode: 'en',
+          regionCode: 'GB',
+          ...(locationBias ? { locationBias } : {}),
+        }),
       });
       const data = await resp.json();
       if (!resp.ok) return json({ error: data.error?.message ?? 'The search could not be completed.' }, 502);
@@ -288,7 +335,7 @@ Deno.serve(async (req: Request) => {
         }),
       );
       const payload = { places: mapped, searchedNear: `results for “${q}”` };
-      await cacheSet(nameKey, payload);
+      if (mapped.length > 0) await cacheSet(nameKey, payload); // never cache emptiness
       return json(payload);
     }
 
@@ -378,6 +425,8 @@ Deno.serve(async (req: Request) => {
     const raw: any[] = [...(nearbyData.places ?? []), ...(textData.places ?? [])].filter((p: any) => {
       if (!p.id || seen.has(p.id)) return false;
       seen.add(p.id);
+      // Bin nurseries/schools/clinics/offices masquerading as days out.
+      if ((p.types ?? []).some((t: string) => NOISE_TYPES.has(t))) return false;
       const loc = p.location;
       if (!loc) return false;
       return milesBetween(centre, { lat: loc.latitude, lng: loc.longitude }) <= radius;
@@ -397,7 +446,8 @@ Deno.serve(async (req: Request) => {
     );
 
     const payload = { places: mapped, searchedNear: centre.label };
-    await cacheSet(searchKey, payload);
+    // Never cache an empty answer — a one-off Google hiccup must not stick for a week.
+    if (mapped.length > 0) await cacheSet(searchKey, payload);
     return json(payload);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Something went wrong.' }, 500);
