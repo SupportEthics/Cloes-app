@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { useAuth, useHiddenTags } from '@/data/auth';
-import { discoverPlaces, fetchPlaceDetails, type PlaceDetails, type Suggestion } from '@/data/discover';
+import { discoverByName, discoverPlaces, fetchPlaceDetails, type PlaceDetails, type Suggestion } from '@/data/discover';
 import { makeId } from '@/data/seed';
 import { useStore } from '@/data/store';
 import { TAG_META } from '@/data/types';
@@ -96,6 +96,26 @@ export default function DiscoverScreen() {
   const toggleCat = (key: string) =>
     setCats((prev) => (key === 'all' ? [] : prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
+  // "I already know the place" — search by name, anywhere.
+  const [nameQuery, setNameQuery] = useState('');
+  const searchByName = async () => {
+    if (!nameQuery.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await discoverByName(nameQuery.trim());
+      setResults(res.places);
+      setService(res.service);
+      setSearchedNear(res.searchedNear);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setResults([]);
+    } finally {
+      setLoading(false);
+      setSearched(true);
+    }
+  };
+
   const add = async (s: Suggestion) => {
     setAddedIds((prev) => new Set(prev).add(s.googleId));
     const det = details[s.googleId];
@@ -151,9 +171,25 @@ export default function DiscoverScreen() {
           <FilterChips options={RADII} active={radiusMi} onChange={setRadiusMi} />
           <FilterChips options={visibleCategories} active={cats.length ? cats : 'all'} onChange={toggleCat} />
 
+          <View style={[styles.searchRow, { paddingTop: 2 }]}>
+            <TextInput
+              value={nameQuery}
+              onChangeText={setNameQuery}
+              placeholder="Know the name? Search a specific place…"
+              placeholderTextColor={c.inkFaint}
+              onSubmitEditing={searchByName}
+              style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
+            />
+            <Pressable onPress={searchByName} style={[styles.searchBtn, { backgroundColor: c.sky }]}>
+              <Text style={{ color: '#fff', fontWeight: '800', fontFamily: fontRounded }}>Look up</Text>
+            </Pressable>
+          </View>
+
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
             {!loading && searchedNear && results.length > 0 ? (
-              <Text style={[styles.nearLine, { color: c.inkSoft }]}>📍 Near {searchedNear}</Text>
+              <Text style={[styles.nearLine, { color: c.inkSoft }]}>
+                {searchedNear.startsWith('results') ? `🔎 ${searchedNear}` : `📍 Near ${searchedNear}`}
+              </Text>
             ) : null}
             {loading ? (
               <View style={styles.centre}>

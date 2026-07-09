@@ -1,15 +1,18 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/data/auth';
-import { getInviteCode, joinFamilyByCode } from '@/data/cloud';
+import { getInviteCode, joinFamilyByCode, listFamilyMembers, removeFamilyMember, type FamilyMember } from '@/data/cloud';
 import { useStore } from '@/data/store';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 
-const MEMBERS = [
-  { name: 'Cloe', role: 'Adventure keeper', colors: ['#2E6B4E', '#8FBF7E'] as const },
-  { name: 'Sean', role: 'Co-pilot', colors: ['#48B4C4', '#F4D384'] as const },
+const AVATAR_COLOURS: readonly (readonly [string, string])[] = [
+  ['#2E6B4E', '#8FBF7E'],
+  ['#48B4C4', '#F4D384'],
+  ['#FF7EA9', '#79C4F5'],
+  ['#7C6BA0', '#C6A05B'],
+  ['#E79B45', '#A7C24E'],
 ];
 
 export default function FamilyScreen() {
@@ -25,22 +28,14 @@ export default function FamilyScreen() {
         <Text style={[styles.h1, { color: c.ink }]}>The family</Text>
       </View>
 
-      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]}>
-        {MEMBERS.map((m, i) => (
-          <View key={m.name} style={[styles.member, i > 0 && { borderTopWidth: 1, borderTopColor: c.line }]}>
-            <LinearGradient colors={m.colors} style={styles.avatar}>
-              <Text style={styles.avatarText}>{m.name.charAt(0)}</Text>
-            </LinearGradient>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.memberName, { color: c.ink }]}>{m.name}</Text>
-              <Text style={[styles.memberRole, { color: c.inkSoft }]}>{m.role}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
       {cloud ? (
-        <CloudPanel familyId={familyId} email={user?.email ?? null} onJoined={reconnect} onSignOut={signOut} />
+        <CloudPanel
+          familyId={familyId}
+          myUserId={user?.id ?? null}
+          email={user?.email ?? null}
+          onChanged={reconnect}
+          onSignOut={signOut}
+        />
       ) : (
         <View style={[styles.summary, { backgroundColor: c.card, borderColor: c.line }]}>
           <Text style={[styles.summaryTitle, { color: c.ink }]}>Sharing is off</Text>
@@ -58,47 +53,100 @@ export default function FamilyScreen() {
 
 function CloudPanel({
   familyId,
+  myUserId,
   email,
-  onJoined,
+  onChanged,
   onSignOut,
 }: {
   familyId: string | null;
+  myUserId: string | null;
   email: string | null;
-  onJoined: () => void;
+  onChanged: () => void;
   onSignOut: () => void;
 }) {
   const { c } = useTheme();
+  const [members, setMembers] = useState<FamilyMember[]>([]);
   const [code, setCode] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+
+  const loadMembers = useCallback(() => {
+    if (!familyId) return;
+    listFamilyMembers(familyId)
+      .then(setMembers)
+      .catch(() => setMembers([]));
+  }, [familyId]);
 
   useEffect(() => {
     let active = true;
-    if (familyId) getInviteCode(familyId).then((v) => active && setCode(v)).catch(() => {});
+    if (familyId) {
+      getInviteCode(familyId).then((v) => active && setCode(v)).catch(() => {});
+      loadMembers();
+    }
     return () => {
       active = false;
     };
-  }, [familyId]);
+  }, [familyId, loadMembers]);
 
-  const join = async () => {
-    if (!joinCode.trim()) return;
-    setBusy(true);
-    setMsg(null);
+  const remove = async (m: FamilyMember) => {
+    if (!familyId) return;
+    if (confirmRemove !== m.userId) {
+      setConfirmRemove(m.userId); // first tap arms it; second tap confirms
+      setTimeout(() => setConfirmRemove((v) => (v === m.userId ? null : v)), 4000);
+      return;
+    }
+    setConfirmRemove(null);
     try {
-      await joinFamilyByCode(joinCode);
-      setJoinCode('');
-      setMsg('Joined! Your journals are now shared.');
-      onJoined();
+      await removeFamilyMember(familyId, m.userId);
+      if (m.userId === myUserId) {
+        onChanged(); // we left — reconnect to whatever family is ours now
+      } else {
+        setMsg(`${m.name} removed from the family.`);
+        loadMembers();
+      }
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "That code didn't work — double-check it.");
-    } finally {
-      setBusy(false);
+      setMsg(e instanceof Error ? e.message : "Couldn't remove that member.");
     }
   };
 
   return (
     <>
+      {/* Real members, live from the family */}
+      <View style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]}>
+        {members.length === 0 ? (
+          <Text style={[styles.summaryBody, { color: c.inkSoft, padding: 14 }]}>Loading your crew…</Text>
+        ) : (
+          members.map((m, i) => {
+            const isMe = m.userId === myUserId;
+            const arming = confirmRemove === m.userId;
+            return (
+              <View key={m.userId} style={[styles.member, i > 0 && { borderTopWidth: 1, borderTopColor: c.line }]}>
+                <LinearGradient colors={AVATAR_COLOURS[i % AVATAR_COLOURS.length]} style={styles.avatar}>
+                  <Text style={styles.avatarText}>{m.name.charAt(0).toUpperCase()}</Text>
+                </LinearGradient>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.memberName, { color: c.ink }]}>
+                    {m.name}
+                    {isMe ? '  (you)' : ''}
+                  </Text>
+                  <Text style={[styles.memberRole, { color: c.inkSoft }]}>{isMe ? 'Signed in on this phone' : 'Family member'}</Text>
+                </View>
+                <Pressable
+                  onPress={() => remove(m)}
+                  style={[styles.removeBtn, { backgroundColor: arming ? c.clay : c.clayTint }]}
+                >
+                  <Text style={{ color: arming ? '#fff' : c.clay, fontWeight: '700', fontSize: 12 }}>
+                    {arming ? 'Tap to confirm' : isMe ? 'Leave' : 'Remove'}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })
+        )}
+      </View>
+
       <View style={[styles.summary, { backgroundColor: c.primaryTint, borderColor: c.primaryTint }]}>
         <Text style={[styles.summaryTitle, { color: c.primary }]}>One shared journal ✓</Text>
         <Text style={[styles.summaryBody, { color: c.primary }]}>
@@ -136,7 +184,25 @@ function CloudPanel({
             autoCapitalize="characters"
             style={[styles.input, { backgroundColor: c.card2, borderColor: c.line, color: c.ink }]}
           />
-          <Pressable onPress={join} disabled={busy} style={[styles.joinBtn, { backgroundColor: c.primary, opacity: busy ? 0.6 : 1 }]}>
+          <Pressable
+            onPress={async () => {
+              if (!joinCode.trim()) return;
+              setBusy(true);
+              setMsg(null);
+              try {
+                await joinFamilyByCode(joinCode);
+                setJoinCode('');
+                setMsg('Joined! Your journals are now shared.');
+                onChanged();
+              } catch (e) {
+                setMsg(e instanceof Error ? e.message : "That code didn't work — double-check it.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+            disabled={busy}
+            style={[styles.joinBtn, { backgroundColor: c.primary, opacity: busy ? 0.6 : 1 }]}
+          >
             <Text style={{ color: c.onPrimary, fontWeight: '800', fontFamily: fontRounded }}>Join</Text>
           </Pressable>
         </View>
@@ -160,6 +226,7 @@ const styles = StyleSheet.create({
   avatarText: { color: '#fff', fontWeight: '800', fontSize: 18, fontFamily: fontRounded },
   memberName: { fontSize: 15.5, fontWeight: '800' },
   memberRole: { fontSize: 12.5, marginTop: 2 },
+  removeBtn: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
   summary: { marginTop: space.lg, borderRadius: radius.md, borderWidth: 1, padding: 16 },
   summaryTitle: { fontSize: 15.5, fontWeight: '800', fontFamily: fontRounded },
   summaryBody: { fontSize: 13.5, marginTop: 6, lineHeight: 19 },

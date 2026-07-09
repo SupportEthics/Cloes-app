@@ -9,6 +9,7 @@ import {
   insertVisit,
   loadPlaces,
   removePlace as cloudRemovePlace,
+  syncMyName,
   updatePlace as cloudUpdatePlace,
   uploadPhotoFile,
 } from './cloud';
@@ -127,6 +128,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (!active) return;
         familyIdRef.current = fid;
         setFamilyId(fid);
+        // Keep our display name visible to the rest of the family (best-effort).
+        if (myName && session?.user?.id) syncMyName(session.user.id, myName).catch(() => {});
         setPlaces(await loadPlaces(fid));
         setCloudError(null);
         setLoaded(true);

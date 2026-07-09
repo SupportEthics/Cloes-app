@@ -164,6 +164,33 @@ export async function removePlace(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export type FamilyMember = { userId: string; name: string };
+
+/** Everyone in a family, with their display names (needs update-2.sql). */
+export async function listFamilyMembers(familyId: string): Promise<FamilyMember[]> {
+  const c = client();
+  const { data: rows, error } = await c.from('family_members').select('user_id').eq('family_id', familyId);
+  if (error) throw error;
+  // deno-lint-ignore no-explicit-any
+  const ids: string[] = (rows ?? []).map((r: any) => r.user_id);
+  if (!ids.length) return [];
+  const { data: profs } = await c.from('profiles').select('user_id, display_name').in('user_id', ids);
+  // deno-lint-ignore no-explicit-any
+  const nameOf = new Map((profs ?? []).map((p: any) => [p.user_id as string, p.display_name as string | null]));
+  return ids.map((id) => ({ userId: id, name: nameOf.get(id) || 'Explorer' }));
+}
+
+/** Keep this user's profile display name in sync (shown to family members). */
+export async function syncMyName(userId: string, name: string): Promise<void> {
+  await client().from('profiles').update({ display_name: name }).eq('user_id', userId);
+}
+
+/** Remove someone from a family (or yourself, to leave it). */
+export async function removeFamilyMember(familyId: string, userId: string): Promise<void> {
+  const { error } = await client().rpc('remove_family_member', { p_family: familyId, p_user: userId });
+  if (error) throw error;
+}
+
 export async function getInviteCode(familyId: string): Promise<string | null> {
   const { data, error } = await client().from('families').select('invite_code').eq('id', familyId).single();
   if (error) throw error;

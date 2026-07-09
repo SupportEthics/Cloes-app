@@ -44,6 +44,29 @@ export async function fetchPlaceDetails(googleId: string): Promise<PlaceDetails 
   }
 }
 
+/** Look up a specific place by name (no radius — you already know it exists). */
+export async function discoverByName(name: string): Promise<DiscoverResult> {
+  if (!supabase) throw new Error('Discover needs cloud sync switched on.');
+  const { data, error } = await supabase.functions.invoke('discover', { body: { nameQuery: name } });
+  if (error) {
+    let msg = 'Could not reach Discover.';
+    try {
+      // deno-lint-ignore no-explicit-any
+      const body = await (error as any).context?.json?.();
+      if (body?.error) msg = body.error;
+    } catch {
+      /* keep fallback */
+    }
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return {
+    places: (data?.places ?? []) as Suggestion[],
+    service: data?.fnVersion as string | undefined,
+    searchedNear: data?.searchedNear as string | undefined,
+  };
+}
+
 /** Ask the secure backend for family-friendly places near a town. Filters combine. */
 export async function discoverPlaces(town: string, categories: string[], radiusMiles?: number): Promise<DiscoverResult> {
   if (!supabase) throw new Error('Discover needs cloud sync switched on.');

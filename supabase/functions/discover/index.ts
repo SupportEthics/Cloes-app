@@ -8,8 +8,47 @@
 // Deploy: Supabase dashboard → Edge Functions → "discover" → Code tab → paste
 // this → Deploy. Secret GOOGLE_PLACES_KEY must be set. Verify JWT: OFF.
 
+import { createClient } from 'npm:@supabase/supabase-js@2';
+
 /** Bumped on every change; returned to the app so deploys are verifiable. */
-const FN_VERSION = 'd8';
+const FN_VERSION = 'd9';
+
+// ---------------------------------------------------------------------------
+// Cache: recent searches + place details live in the project's own database
+// (table discover_cache — see supabase/discover-cache.sql), so repeat lookups
+// are instant and cost nothing at Google.
+// ---------------------------------------------------------------------------
+const SEARCH_FRESH_MS = 7 * 24 * 60 * 60 * 1000; // a week
+const DETAILS_FRESH_MS = 30 * 24 * 60 * 60 * 1000; // a month
+
+function db() {
+  const url = Deno.env.get('SUPABASE_URL');
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  return url && key ? createClient(url, key) : null;
+}
+
+async function cacheGet(key: string, freshMs: number): Promise<Record<string, unknown> | null> {
+  const c = db();
+  if (!c) return null;
+  try {
+    const { data } = await c.from('discover_cache').select('payload,created_at').eq('key', key).maybeSingle();
+    if (!data) return null;
+    if (Date.now() - new Date(data.created_at).getTime() > freshMs) return null;
+    return data.payload as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+async function cacheSet(key: string, payload: unknown): Promise<void> {
+  const c = db();
+  if (!c) return;
+  try {
+    await c.from('discover_cache').upsert({ key, payload, created_at: new Date().toISOString() });
+  } catch {
+    /* cache is best-effort */
+  }
+}
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -204,22 +243,68 @@ async function geocodeTown(
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { town, category, categories, radiusMiles, detailsFor } = await req.json().catch(() => ({}));
+    const { town, category, categories, radiusMiles, detailsFor, nameQuery } = await req.json().catch(() => ({}));
 
     const key = Deno.env.get('GOOGLE_PLACES_KEY');
     if (!key) return json({ error: 'The places service is not configured yet.' }, 500);
 
-    // Detail lookups (preview sheet) are their own tiny request.
+    // Detail lookups (preview sheet) are their own tiny request — cached a month.
     if (detailsFor) {
+      const cacheKey = `details|${String(detailsFor)}`;
+      const cached = await cacheGet(cacheKey, DETAILS_FRESH_MS);
+      if (cached) return json({ details: cached, cached: true });
       const details = await placeDetails(String(detailsFor), key);
       if (!details) return json({ error: "Couldn't fetch details for that place." }, 502);
+      await cacheSet(cacheKey, details);
       return json({ details });
+    }
+
+    // Name search: "I already know the place" — find it anywhere, no radius.
+    if (nameQuery && String(nameQuery).trim()) {
+      const q = String(nameQuery).trim();
+      const nameKey = `name|${q.toLowerCase()}`;
+      const cachedName = await cacheGet(nameKey, SEARCH_FRESH_MS);
+      if (cachedName) return json({ ...cachedName, cached: true });
+
+      const resp = await fetch(PLACES_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': key,
+          'X-Goog-FieldMask':
+            'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos',
+        },
+        body: JSON.stringify({ textQuery: q, maxResultCount: 10, languageCode: 'en', regionCode: 'GB' }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) return json({ error: data.error?.message ?? 'The search could not be completed.' }, 502);
+      // deno-lint-ignore no-explicit-any
+      const mapped = (data.places ?? []).map((p: any) => mapPlace(p));
+      await Promise.all(
+        // deno-lint-ignore no-explicit-any
+        mapped.map(async (m: any) => {
+          if (m.photoName) m.photoUrl = await resolvePhoto(m.photoName, key);
+          delete m.photoName;
+        }),
+      );
+      const payload = { places: mapped, searchedNear: `results for “${q}”` };
+      await cacheSet(nameKey, payload);
+      return json(payload);
     }
 
     if (!town || !String(town).trim()) return json({ error: 'Set your home town first, then try again.' }, 400);
 
     const cleanTown = normalizeUkPostcode(String(town));
     const radius = Math.min(Math.max(Number(radiusMiles) || 20, 1), 60);
+
+    // Same area + filters within a week → serve from our own cache, no Google.
+    const catsForKey = (Array.isArray(categories) ? categories : category ? [category] : [])
+      .map((x: unknown) => String(x))
+      .sort()
+      .join(',');
+    const searchKey = `search|${cleanTown.toLowerCase()}|${radius}|${catsForKey}`;
+    const cachedSearch = await cacheGet(searchKey, SEARCH_FRESH_MS);
+    if (cachedSearch) return json({ ...cachedSearch, cached: true });
 
     // The centre point is required — never silently skip the radius.
     const centre = await geocodeTown(cleanTown, key);
@@ -311,7 +396,9 @@ Deno.serve(async (req: Request) => {
       }),
     );
 
-    return json({ places: mapped, searchedNear: centre.label });
+    const payload = { places: mapped, searchedNear: centre.label };
+    await cacheSet(searchKey, payload);
+    return json(payload);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Something went wrong.' }, 500);
   }

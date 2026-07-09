@@ -73,6 +73,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (homeTown !== undefined) data.home_town = homeTown.trim();
         if (hiddenTags !== undefined) data.hidden_tags = hiddenTags;
         const { error } = await supabase.auth.updateUser({ data });
+        // Mirror the display name into profiles so family members see it too.
+        if (!error && name !== undefined && session?.user?.id) {
+          await supabase.from('profiles').update({ display_name: name.trim() }).eq('user_id', session.user.id).then(
+            () => {},
+            () => {},
+          );
+        }
         return error ? { error: error.message } : {};
       },
       signOut: async () => {
