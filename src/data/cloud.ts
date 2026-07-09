@@ -49,6 +49,7 @@ function toPlace(r: any): Place {
     cost: r.cost ?? undefined,
     googleRating: r.google_rating != null ? Number(r.google_rating) : undefined,
     familyRating: r.family_rating ?? undefined,
+    coverUrl: r.cover_url ?? undefined,
     notes: r.notes ?? [],
     visits,
     photos: (r.photos ?? []).map(toPhoto),
@@ -89,6 +90,7 @@ export async function insertPlace(familyId: string, place: Place): Promise<void>
     cost: place.cost ?? null,
     google_rating: place.googleRating ?? null,
     family_rating: place.familyRating ?? null,
+    cover_url: place.coverUrl ?? null,
     notes: place.notes,
     created_at: place.createdAt,
   });
@@ -105,6 +107,7 @@ export async function updatePlace(id: string, patch: Partial<Place>): Promise<vo
   if (patch.cost !== undefined) row.cost = patch.cost;
   if (patch.familyRating !== undefined) row.family_rating = patch.familyRating;
   if (patch.googleRating !== undefined) row.google_rating = patch.googleRating;
+  if (patch.coverUrl !== undefined) row.cover_url = patch.coverUrl;
   if (Object.keys(row).length === 0) return;
   const { error } = await client().from('places').update(row).eq('id', id);
   if (error) throw error;

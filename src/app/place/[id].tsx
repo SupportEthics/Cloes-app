@@ -41,7 +41,7 @@ export default function PlaceDetail() {
   const last = lastVisit(place);
   const ourRating = place.familyRating ?? averageRating(place);
   const recent = place.visits[0];
-  const heroUri = place.photos.find((ph) => ph.uri)?.uri;
+  const heroUri = place.coverUrl ?? place.photos.find((ph) => ph.uri)?.uri;
 
   const heroButtons = (
     <>

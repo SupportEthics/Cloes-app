@@ -37,6 +37,8 @@ export interface Place {
   cost?: string;
   /** Google's public rating, captured when added via Discover. */
   googleRating?: number;
+  /** A cover photo of the place (e.g. Google's) — NOT a family memory. */
+  coverUrl?: string;
   /** The family's own star rating, set on the place page. */
   familyRating?: number;
   notes: string[]; // notes for next time
@@ -56,6 +58,7 @@ export type NewPlace = {
   cost?: string;
   googleRating?: number;
   familyRating?: number;
+  coverUrl?: string;
   notes?: string[];
 };
 

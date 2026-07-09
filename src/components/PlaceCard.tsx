@@ -11,7 +11,7 @@ export function PlaceCard({ place }: { place: Place }) {
   const { c } = useTheme();
   const router = useRouter();
   const rating = displayRating(place) ?? place.googleRating;
-  const heroUri = place.photos.find((ph) => ph.uri)?.uri;
+  const heroUri = place.coverUrl ?? place.photos.find((ph) => ph.uri)?.uri;
   const hiddenTags = useHiddenTags();
   const shownTags = place.tags.filter((t) => !hiddenTags.includes(t));
 

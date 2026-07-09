@@ -6,7 +6,6 @@ import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { useAuth, useHiddenTags } from '@/data/auth';
 import { discoverByName, discoverPlaces, fetchPlaceDetails, type PlaceDetails, type Suggestion } from '@/data/discover';
-import { makeId } from '@/data/seed';
 import { useStore } from '@/data/store';
 import { TAG_META } from '@/data/types';
 import { fontRounded, radius, space, useTheme } from '@/theme';
@@ -39,7 +38,7 @@ export default function DiscoverScreen() {
   const { c } = useTheme();
   const router = useRouter();
   const { user, cloud } = useAuth();
-  const { addPlace, addPhoto, places } = useStore();
+  const { addPlace, places } = useStore();
 
   const homeTown = (user?.user_metadata?.home_town as string | undefined) ?? '';
   const hiddenTags = useHiddenTags();
@@ -123,7 +122,7 @@ export default function DiscoverScreen() {
     setAddedIds((prev) => new Set(prev).add(s.googleId));
     const det = details[s.googleId];
     const bestSummary = s.summary ?? (typeof det === 'object' ? det?.summary : undefined);
-    const place = await addPlace({
+    await addPlace({
       name: s.name,
       location: s.address || area.trim() || undefined,
       emoji: s.emoji,
@@ -132,10 +131,10 @@ export default function DiscoverScreen() {
       tags: s.tags,
       cost: s.cost,
       googleRating: s.rating,
+      // Google's photo becomes the COVER — Memories stay the family's own.
+      coverUrl: s.photoUrl,
       notes: bestSummary ? [bestSummary] : [],
     });
-    // Keep the real photo with the saved place.
-    if (s.photoUrl) addPhoto(place.id, { id: makeId('photo'), uri: s.photoUrl });
   };
 
   const isAdded = (s: Suggestion) => addedIds.has(s.googleId) || places.some((p) => p.name === s.name);
