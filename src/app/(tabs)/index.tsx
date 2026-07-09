@@ -1,8 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { GradientPhoto } from '@/components/GradientPhoto';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PlaceCard } from '@/components/PlaceCard';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/data/auth';
 import { buildNudges, fetchWeather, type Weather } from '@/data/nudges';
@@ -33,15 +33,15 @@ export default function HomeScreen() {
 
   const nudges = useMemo(() => buildNudges(places, weather), [places, weather]);
 
-  // A strip of the family's own places so Home never feels bare: the to-do
+  // Three of the family's own places so Home never feels bare: the to-do
   // list first (newest additions leading), favourites when it's empty.
   const upNext = useMemo(() => {
     const todo = places
       .filter((p) => p.status === 'not_yet')
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    if (todo.length) return { title: 'Up next on your list', items: todo.slice(0, 10) };
+    if (todo.length) return { title: 'Up next on your list', items: todo.slice(0, 3) };
     const faves = places.filter((p) => p.status === 'would_again');
-    return { title: 'Family favourites', items: faves.slice(0, 10) };
+    return { title: 'Family favourites', items: faves.slice(0, 3) };
   }, [places]);
   const hero = nudges.find((n) => n.kind === 'sunny');
   const rows = nudges.filter((n) => n.kind !== 'sunny');
@@ -129,51 +129,6 @@ export default function HomeScreen() {
         </>
       ) : null}
 
-      {/* The family's own places */}
-      {upNext.items.length > 0 ? (
-        <>
-          <View style={styles.sectionRow}>
-            <Text style={[styles.sectionH, { color: c.ink, marginTop: 0 }]}>{upNext.title}</Text>
-            <Pressable onPress={() => router.push('/list')}>
-              <Text style={[styles.link, { color: c.primary }]}>See all</Text>
-            </Pressable>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginHorizontal: -space.lg, flexGrow: 0 }}
-            contentContainerStyle={{ paddingHorizontal: space.lg, gap: 10 }}
-          >
-            {upNext.items.map((p) => {
-              const cover = p.coverUrl ?? p.photos.find((ph) => ph.uri)?.uri;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => router.push(`/place/${p.id}`)}
-                  style={[styles.miniCard, { backgroundColor: c.card, borderColor: c.line }]}
-                >
-                  {cover ? (
-                    <ImageBackground source={{ uri: cover }} style={styles.miniPhoto} resizeMode="cover" />
-                  ) : (
-                    <GradientPhoto gradient={p.gradient} emoji={p.emoji} fontSize={30} style={styles.miniPhoto} />
-                  )}
-                  <View style={{ padding: 10 }}>
-                    <Text style={[styles.miniName, { color: c.ink }]} numberOfLines={2}>
-                      {p.name}
-                    </Text>
-                    {p.location ? (
-                      <Text style={[styles.miniLoc, { color: c.inkSoft }]} numberOfLines={1}>
-                        📍 {p.location}
-                      </Text>
-                    ) : null}
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </>
-      ) : null}
-
       {/* Discover */}
       <Pressable onPress={() => router.push('/discover')} style={{ marginTop: 22 }}>
         <LinearGradient colors={['#3FA07E', '#1F5A4C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.discover}>
@@ -185,6 +140,23 @@ export default function HomeScreen() {
           <Text style={styles.discoverChev}>›</Text>
         </LinearGradient>
       </Pressable>
+
+      {/* The family's own places — same cards as the List */}
+      {upNext.items.length > 0 ? (
+        <>
+          <View style={styles.sectionRow}>
+            <Text style={[styles.sectionH, { color: c.ink, marginTop: 0 }]}>{upNext.title}</Text>
+            <Pressable onPress={() => router.push('/list')}>
+              <Text style={[styles.link, { color: c.primary }]}>See all</Text>
+            </Pressable>
+          </View>
+          <View style={{ gap: 14 }}>
+            {upNext.items.map((p) => (
+              <PlaceCard key={p.id} place={p} />
+            ))}
+          </View>
+        </>
+      ) : null}
 
       {/* Year so far */}
       <View style={styles.sectionRow}>
@@ -233,11 +205,6 @@ const styles = StyleSheet.create({
   errBanner: { borderWidth: 1, borderRadius: radius.sm, padding: 12, marginTop: 6 },
   errText: { fontSize: 12.5, fontWeight: '700', lineHeight: 17 },
   errDismiss: { fontSize: 11, marginTop: 4, opacity: 0.8 },
-
-  miniCard: { width: 150, borderRadius: radius.sm, borderWidth: 1, overflow: 'hidden' },
-  miniPhoto: { height: 84, alignItems: 'center', justifyContent: 'center' },
-  miniName: { fontSize: 13.5, fontWeight: '800', lineHeight: 17, fontFamily: fontRounded },
-  miniLoc: { fontSize: 11, marginTop: 4 },
 
   discover: { flexDirection: 'row', alignItems: 'center', gap: 14, borderRadius: radius.md, padding: 18 },
   discoverEmoji: { fontSize: 26 },
