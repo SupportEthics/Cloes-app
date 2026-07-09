@@ -14,8 +14,12 @@ import 'react-native-url-polyfill/auto';
  * `supabase/schema.sql`) is what actually protects each family's data.
  */
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+// The family's cloud project, baked in as the default so a fresh checkout
+// (Expo Go, EAS builds) connects with zero setup. These publishable values are
+// safe to ship — they're already public in the hosted web app, and row-level
+// security is what actually protects the data. Env vars still override.
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://qzqdagypdpcncchctisb.supabase.co';
+const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_XncKzNk5WOHAWsfjaDDyPg_gFidOCQH';
 
 export const supabase: SupabaseClient | null =
   url && anonKey
