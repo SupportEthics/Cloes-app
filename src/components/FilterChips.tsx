@@ -10,10 +10,12 @@ export function FilterChips({
   onChange,
 }: {
   options: ChipOption[];
-  active: string;
+  /** A single key, or an array of keys for multi-select rows. */
+  active: string | string[];
   onChange: (key: string) => void;
 }) {
   const { c } = useTheme();
+  const isOn = (key: string) => (Array.isArray(active) ? active.includes(key) : active === key);
   return (
     <ScrollView
       horizontal
@@ -23,7 +25,7 @@ export function FilterChips({
       contentContainerStyle={styles.row}
     >
       {options.map((opt) => {
-        const on = opt.key === active;
+        const on = isOn(opt.key);
         return (
           <Pressable
             key={opt.key}

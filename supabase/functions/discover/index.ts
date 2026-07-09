@@ -9,7 +9,7 @@
 // this → Deploy. Secret GOOGLE_PLACES_KEY must be set. Verify JWT: OFF.
 
 /** Bumped on every change; returned to the app so deploys are verifiable. */
-const FN_VERSION = 'd6';
+const FN_VERSION = 'd7';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -194,7 +194,7 @@ async function geocodeTown(town: string, key: string): Promise<{ lat: number; ln
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { town, category, radiusMiles, detailsFor } = await req.json().catch(() => ({}));
+    const { town, category, categories, radiusMiles, detailsFor } = await req.json().catch(() => ({}));
 
     const key = Deno.env.get('GOOGLE_PLACES_KEY');
     if (!key) return json({ error: 'The places service is not configured yet.' }, 500);
@@ -217,10 +217,16 @@ Deno.serve(async (req: Request) => {
       return json({ error: `Couldn't find "${cleanTown}" — try a town name or a full postcode.` }, 400);
     }
 
-    const textQuery =
-      category && KINDS.has(category)
-        ? `family friendly ${CATEGORY_QUERY[category]} near ${cleanTown}`
-        : `family friendly days out${category && CATEGORY_QUERY[category] ? ` ${CATEGORY_QUERY[category]}` : ''} near ${cleanTown}`;
+    // Filters combine: e.g. ["play","toddler"] → toddler-friendly soft play.
+    const cats: string[] = (Array.isArray(categories) ? categories : category ? [category] : [])
+      .map((x: unknown) => String(x))
+      .filter((x: string) => CATEGORY_QUERY[x] !== undefined || NEARBY_TYPES[x] !== undefined);
+    const kinds = cats.filter((x) => KINDS.has(x));
+    const quals = cats.filter((x) => !KINDS.has(x));
+
+    const subject = kinds.length ? kinds.map((k) => CATEGORY_QUERY[k]).join(' and ') : 'days out';
+    const qualWords = quals.map((q) => CATEGORY_QUERY[q]).filter(Boolean).join(' ');
+    const textQuery = `family friendly ${qualWords ? qualWords + ' ' : ''}${subject} near ${cleanTown}`;
     const FIELD_MASK =
       'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos';
     const circle = {
@@ -233,7 +239,16 @@ Deno.serve(async (req: Request) => {
     //  1) text search — Google's editorial "best days out" picks (biased local)
     //  2) nearby-by-type — every park/playground/farm/museum/pool INSIDE the
     //     circle, which is what keeps small-radius searches well stocked.
-    const nearbyTypes = NEARBY_TYPES[category ?? 'all'] ?? NEARBY_TYPES.all;
+    // With combined filters, intersect their type sets ("play" ∩ "toddler" =
+    // playgrounds & soft play); if the overlap is empty, fall back to a union.
+    const typeSets = cats.map((x) => NEARBY_TYPES[x]).filter(Boolean) as string[][];
+    let nearbyTypes: string[];
+    if (typeSets.length === 0) nearbyTypes = NEARBY_TYPES.all;
+    else if (typeSets.length === 1) nearbyTypes = typeSets[0];
+    else {
+      const intersection = typeSets.reduce((acc, set) => acc.filter((t) => set.includes(t)));
+      nearbyTypes = intersection.length ? intersection : Array.from(new Set(typeSets.flat())).slice(0, 20);
+    }
     const [textResp, nearbyResp] = await Promise.all([
       fetch(PLACES_URL, {
         method: 'POST',

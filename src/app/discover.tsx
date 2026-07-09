@@ -43,7 +43,7 @@ export default function DiscoverScreen() {
 
   const homeTown = (user?.user_metadata?.home_town as string | undefined) ?? '';
   const [area, setArea] = useState(homeTown);
-  const [category, setCategory] = useState('all');
+  const [cats, setCats] = useState<string[]>([]); // empty = All
   const [radiusMi, setRadiusMi] = useState('20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,12 +64,12 @@ export default function DiscoverScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview?.googleId]);
 
-  const search = useCallback(async (town: string, cat: string, rad: string) => {
+  const search = useCallback(async (town: string, selected: string[], rad: string) => {
     if (!town.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await discoverPlaces(town.trim(), cat === 'all' ? undefined : cat, Number(rad));
+      const res = await discoverPlaces(town.trim(), selected, Number(rad));
       setResults(res.places);
       setService(res.service);
     } catch (e) {
@@ -81,11 +81,15 @@ export default function DiscoverScreen() {
     }
   }, []);
 
-  // Auto-search on open (and when category/radius changes) if we know the town.
+  // Auto-search on open (and when filters/radius change) if we know the town.
   useEffect(() => {
-    if (cloud && homeTown.trim()) search(homeTown, category, radiusMi);
+    if (cloud && homeTown.trim()) search(homeTown, cats, radiusMi);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, radiusMi, cloud]);
+  }, [cats.join(','), radiusMi, cloud]);
+
+  // Chips combine: tap to add/remove; "All" clears the lot.
+  const toggleCat = (key: string) =>
+    setCats((prev) => (key === 'all' ? [] : prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
   const add = async (s: Suggestion) => {
     setAddedIds((prev) => new Set(prev).add(s.googleId));
@@ -131,16 +135,16 @@ export default function DiscoverScreen() {
               onChangeText={setArea}
               placeholder="Town or postcode"
               placeholderTextColor={c.inkFaint}
-              onSubmitEditing={() => search(area, category, radiusMi)}
+              onSubmitEditing={() => search(area, cats, radiusMi)}
               style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
             />
-            <Pressable onPress={() => search(area, category, radiusMi)} style={[styles.searchBtn, { backgroundColor: c.primary }]}>
+            <Pressable onPress={() => search(area, cats, radiusMi)} style={[styles.searchBtn, { backgroundColor: c.primary }]}>
               <Text style={{ color: c.onPrimary, fontWeight: '800', fontFamily: fontRounded }}>Find</Text>
             </Pressable>
           </View>
 
           <FilterChips options={RADII} active={radiusMi} onChange={setRadiusMi} />
-          <FilterChips options={CATEGORIES} active={category} onChange={setCategory} />
+          <FilterChips options={CATEGORIES} active={cats.length ? cats : 'all'} onChange={toggleCat} />
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
             {loading ? (
@@ -151,7 +155,7 @@ export default function DiscoverScreen() {
             ) : error ? (
               <View style={styles.centre}>
                 <Text style={[styles.muted, { color: c.clay, textAlign: 'center' }]}>{error}</Text>
-                <Pressable onPress={() => search(area, category, radiusMi)} style={[styles.retry, { borderColor: c.line }]}>
+                <Pressable onPress={() => search(area, cats, radiusMi)} style={[styles.retry, { borderColor: c.line }]}>
                   <Text style={{ color: c.primary, fontWeight: '700' }}>Try again</Text>
                 </Pressable>
               </View>

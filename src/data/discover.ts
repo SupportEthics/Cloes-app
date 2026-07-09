@@ -42,10 +42,10 @@ export async function fetchPlaceDetails(googleId: string): Promise<PlaceDetails 
   }
 }
 
-/** Ask the secure backend for family-friendly places near a town. */
-export async function discoverPlaces(town: string, category?: string, radiusMiles?: number): Promise<DiscoverResult> {
+/** Ask the secure backend for family-friendly places near a town. Filters combine. */
+export async function discoverPlaces(town: string, categories: string[], radiusMiles?: number): Promise<DiscoverResult> {
   if (!supabase) throw new Error('Discover needs cloud sync switched on.');
-  const { data, error } = await supabase.functions.invoke('discover', { body: { town, category, radiusMiles } });
+  const { data, error } = await supabase.functions.invoke('discover', { body: { town, categories, radiusMiles } });
   if (error) {
     // Pull the real message out of a non-2xx response when we can.
     let msg = 'Could not reach Discover.';
