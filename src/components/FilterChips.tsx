@@ -1,8 +1,15 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
-import { fontRounded, space, useTheme } from '@/theme';
+import { fontRounded, space, useTheme, type Palette } from '@/theme';
 
-export type ChipOption = { key: string; label: string };
+export type ChipOption = {
+  key: string;
+  label: string;
+  /** Optional palette colour (e.g. a verdict colour) — used when the chip is active. */
+  color?: keyof Palette;
+  /** Matching tint shown as the idle background so colour-coding reads at a glance. */
+  tint?: keyof Palette;
+};
 
 export function FilterChips({
   options,
@@ -26,6 +33,9 @@ export function FilterChips({
     >
       {options.map((opt) => {
         const on = isOn(opt.key);
+        const activeBg = opt.color ? c[opt.color] : c.primary;
+        const idleBg = opt.tint ? c[opt.tint] : c.card;
+        const idleFg = opt.color ? c[opt.color] : c.inkSoft;
         return (
           <Pressable
             key={opt.key}
@@ -34,10 +44,15 @@ export function FilterChips({
             accessibilityState={{ selected: on }}
             style={[
               styles.chip,
-              { backgroundColor: on ? c.primary : c.card, borderColor: on ? c.primary : c.line },
+              {
+                backgroundColor: on ? activeBg : idleBg,
+                borderColor: on ? activeBg : opt.tint ? 'transparent' : c.line,
+              },
             ]}
           >
-            <Text style={[styles.label, { color: on ? c.onPrimary : c.inkSoft }]}>{opt.label}</Text>
+            <Text style={[styles.label, { color: on ? (opt.color ? '#fff' : c.onPrimary) : idleFg }]}>
+              {opt.label}
+            </Text>
           </Pressable>
         );
       })}

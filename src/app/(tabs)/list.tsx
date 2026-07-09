@@ -22,19 +22,21 @@ export default function ListScreen() {
   const hiddenTags = useHiddenTags();
   const [filter, setFilter] = useState('all');
 
-  const filters: ChipOption[] = [
+  const allFilters: ChipOption[] = [
     { key: 'all', label: `All ${places.length}` },
-    { key: 'not_yet', label: '◦ To-do' },
-    { key: 'would_again', label: '⭐ Would do again' },
-    { key: 'might_again', label: '🤔 Might do again' },
-    { key: 'wouldnt_again', label: "✗ Wouldn't do again" },
+    // Status chips carry their verdict colour so the row reads at a glance.
+    { key: 'not_yet', label: '◦ To-do', color: 'amber', tint: 'amberTint' },
+    { key: 'would_again', label: '⭐ Would do again', color: 'primary', tint: 'primaryTint' },
+    { key: 'might_again', label: '🤔 Might do again', color: 'sky', tint: 'skyTint' },
+    { key: 'wouldnt_again', label: "✗ Wouldn't do again", color: 'clay', tint: 'clayTint' },
     { key: 'rainy', label: '🌧️ Rainy day' },
     { key: 'free', label: 'Free' },
     { key: 'toddler', label: 'Toddler-friendly' },
     { key: 'outdoors', label: 'Outdoors' },
     { key: 'fullday', label: 'Full day' },
     { key: 'other', label: 'Other' },
-  ].filter((f) => !hiddenTags.includes(f.key));
+  ];
+  const filters = allFilters.filter((f) => !hiddenTags.includes(f.key));
 
   const shown = useMemo(() => places.filter((p) => matches(p, filter)), [places, filter]);
 
