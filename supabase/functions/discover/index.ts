@@ -9,7 +9,7 @@
 // this → Deploy. Secret GOOGLE_PLACES_KEY must be set. Verify JWT: OFF.
 
 /** Bumped on every change; returned to the app so deploys are verifiable. */
-const FN_VERSION = 'd5';
+const FN_VERSION = 'd6';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +26,7 @@ const json = (body: Record<string, unknown>, status = 200) =>
 const PLACES_URL = 'https://places.googleapis.com/v1/places:searchText';
 const NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
-// Extra words we add to the search to bias results by category.
+// Extra words we add to the search to bias results by category or kind.
 const CATEGORY_QUERY: Record<string, string> = {
   rainy: 'indoor',
   toddler: 'toddler',
@@ -34,6 +34,14 @@ const CATEGORY_QUERY: Record<string, string> = {
   outdoors: 'outdoor',
   fullday: 'full day',
   other: '',
+  // "Kind" chips — the same looks a family can pick when adding their own place.
+  woods: 'woodland walks and forests',
+  beach: 'beaches',
+  farm: 'farm parks and petting farms',
+  castle: 'castles',
+  play: 'soft play and playgrounds',
+  museum: 'museums',
+  park: 'parks',
 };
 
 // Type-based nearby lookup: this is what finds the LOCAL places (playgrounds,
@@ -46,7 +54,17 @@ const NEARBY_TYPES: Record<string, string[]> = {
   outdoors: ['park', 'playground', 'national_park', 'hiking_area', 'farm', 'zoo'],
   fullday: ['zoo', 'amusement_park', 'water_park', 'national_park', 'museum', 'tourist_attraction'],
   other: ['tourist_attraction', 'historical_landmark', 'community_center'],
+  woods: ['hiking_area', 'national_park', 'park'],
+  beach: ['beach'],
+  farm: ['farm', 'zoo'],
+  castle: ['historical_landmark', 'tourist_attraction'],
+  play: ['playground', 'amusement_center'],
+  museum: ['museum', 'art_gallery', 'aquarium'],
+  park: ['park', 'national_park', 'playground'],
 };
+
+/** Kind chips read better as the subject of the search ("family friendly castles near…"). */
+const KINDS = new Set(['woods', 'beach', 'farm', 'castle', 'play', 'museum', 'park']);
 
 /** "cf453bd" → "CF45 3BD"; anything that isn't a UK postcode passes through. */
 function normalizeUkPostcode(s: string): string {
@@ -199,8 +217,10 @@ Deno.serve(async (req: Request) => {
       return json({ error: `Couldn't find "${cleanTown}" — try a town name or a full postcode.` }, 400);
     }
 
-    const hint = category && CATEGORY_QUERY[category] ? ` ${CATEGORY_QUERY[category]}` : '';
-    const textQuery = `family friendly days out${hint} near ${cleanTown}`;
+    const textQuery =
+      category && KINDS.has(category)
+        ? `family friendly ${CATEGORY_QUERY[category]} near ${cleanTown}`
+        : `family friendly days out${category && CATEGORY_QUERY[category] ? ` ${CATEGORY_QUERY[category]}` : ''} near ${cleanTown}`;
     const FIELD_MASK =
       'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos';
     const circle = {

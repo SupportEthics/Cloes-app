@@ -18,6 +18,14 @@ const CATEGORIES: ChipOption[] = [
   { key: 'free', label: 'Free' },
   { key: 'outdoors', label: '☀️ Outdoors' },
   { key: 'fullday', label: '🕐 Full day' },
+  // The same "looks" you can pick when adding your own place.
+  { key: 'woods', label: '🌲 Woods' },
+  { key: 'beach', label: '🏖️ Beach' },
+  { key: 'farm', label: '🐐 Farm' },
+  { key: 'castle', label: '🏰 Castle' },
+  { key: 'play', label: '🤸 Play' },
+  { key: 'museum', label: '🦕 Museum' },
+  { key: 'park', label: '🌳 Park' },
 ];
 
 const RADII: ChipOption[] = [
