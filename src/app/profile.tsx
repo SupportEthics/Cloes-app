@@ -9,6 +9,17 @@ import { fontRounded, radius, space, useTheme } from '@/theme';
 
 const ALL_TAGS = Object.keys(TAG_META) as Tag[];
 
+/** The Discover "kind" filters (also the add-a-place looks) — all hideable too. */
+const ALL_KINDS: { key: string; label: string }[] = [
+  { key: 'woods', label: '🌲 Woods' },
+  { key: 'beach', label: '🏖️ Beach' },
+  { key: 'farm', label: '🐐 Farm' },
+  { key: 'castle', label: '🏰 Castle' },
+  { key: 'play', label: '🤸 Play' },
+  { key: 'museum', label: '🦕 Museum' },
+  { key: 'park', label: '🌳 Park' },
+];
+
 export default function ProfileScreen() {
   const { c } = useTheme();
   const router = useRouter();
@@ -22,7 +33,7 @@ export default function ProfileScreen() {
   const [hidden, setHidden] = useState<string[]>(hiddenFromProfile);
 
   // Category toggles apply instantly (no Save button needed for these).
-  const toggleTag = (t: Tag) => {
+  const toggleTag = (t: string) => {
     const next = hidden.includes(t) ? hidden.filter((x) => x !== t) : [...hidden, t];
     setHidden(next);
     updateProfile({ hiddenTags: next });
@@ -115,6 +126,27 @@ export default function ProfileScreen() {
                     >
                       <Text style={{ fontSize: 13, fontWeight: '700', color: off ? c.inkFaint : c.primary, textDecorationLine: off ? 'line-through' : 'none' }}>
                         {TAG_META[t].emoji} {TAG_META[t].label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Text style={[styles.label, { color: c.inkFaint, marginTop: 18 }]}>Place kinds (Discover & looks)</Text>
+              <View style={styles.catWrap}>
+                {ALL_KINDS.map((k) => {
+                  const off = hidden.includes(k.key);
+                  return (
+                    <Pressable
+                      key={k.key}
+                      onPress={() => toggleTag(k.key)}
+                      style={[
+                        styles.catChip,
+                        { backgroundColor: off ? c.card2 : c.primaryTint, borderColor: off ? c.line : c.primary },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: off ? c.inkFaint : c.primary, textDecorationLine: off ? 'line-through' : 'none' }}>
+                        {k.label}
                       </Text>
                     </Pressable>
                   );

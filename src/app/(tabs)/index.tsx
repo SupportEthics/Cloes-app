@@ -1,10 +1,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/data/auth';
-import { buildNudges, todayWeather } from '@/data/nudges';
+import { buildNudges, fetchWeather, type Weather } from '@/data/nudges';
 import { useStore } from '@/data/store';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 import { BUILD } from '@/version';
@@ -14,13 +14,23 @@ export default function HomeScreen() {
   const router = useRouter();
   const { places, cloudError, clearError } = useStore();
   const { user } = useAuth();
-  const weather = todayWeather();
 
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) || user?.email?.split('@')[0] || 'friend';
   const homeTown = user?.user_metadata?.home_town as string | undefined;
 
-  const nudges = useMemo(() => buildNudges(places), [places]);
+  // Real conditions for the home town (no chip until we actually know them).
+  const [weather, setWeather] = useState<Weather | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (homeTown?.trim()) fetchWeather(homeTown).then((w) => active && setWeather(w));
+    else setWeather(null);
+    return () => {
+      active = false;
+    };
+  }, [homeTown]);
+
+  const nudges = useMemo(() => buildNudges(places, weather), [places, weather]);
   const hero = nudges.find((n) => n.kind === 'sunny');
   const rows = nudges.filter((n) => n.kind !== 'sunny');
 
@@ -52,9 +62,14 @@ export default function HomeScreen() {
             {today}
             {homeTown ? ` · ${homeTown}` : ''}
           </Text>
-          <View style={[styles.weatherChip, { backgroundColor: c.coralTint }]}>
-            <Text style={[styles.weatherText, { color: c.coral }]}>☀️ {weather.summary}</Text>
-          </View>
+          {weather ? (
+            <View style={[styles.weatherChip, { backgroundColor: c.coralTint }]}>
+              <Text style={[styles.weatherText, { color: c.coral }]}>
+                {weather.emoji} {weather.summary}
+                {weather.sunny ? ' — perfect for outdoors' : weather.raining ? ' — indoor day?' : ''}
+              </Text>
+            </View>
+          ) : null}
         </View>
         <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityLabel="Your profile">
           <LinearGradient colors={['#2E6B4E', '#8FBF7E']} style={styles.avatar}>

@@ -10,7 +10,6 @@ import { fontRounded, radius, space, useTheme } from '@/theme';
 const MEMBERS = [
   { name: 'Cloe', role: 'Adventure keeper', colors: ['#2E6B4E', '#8FBF7E'] as const },
   { name: 'Sean', role: 'Co-pilot', colors: ['#48B4C4', '#F4D384'] as const },
-  { name: 'Ivy', role: 'Chief explorer', colors: ['#FF7EA9', '#79C4F5'] as const },
 ];
 
 export default function FamilyScreen() {

@@ -10,14 +10,14 @@ import { useStore } from '@/data/store';
 import { STATUS_META, STATUS_ORDER, TAG_META, type Status, type Tag } from '@/data/types';
 import { fontRounded, radius, space, useTheme, type GradientKey } from '@/theme';
 
-const VIBES: { emoji: string; gradient: GradientKey; label: string }[] = [
-  { emoji: '🌲', gradient: 'woods', label: 'Woods' },
-  { emoji: '🏖️', gradient: 'beach', label: 'Beach' },
-  { emoji: '🐐', gradient: 'farm', label: 'Farm' },
-  { emoji: '🏰', gradient: 'castle', label: 'Castle' },
-  { emoji: '🤸', gradient: 'soft', label: 'Play' },
-  { emoji: '🦕', gradient: 'museum', label: 'Museum' },
-  { emoji: '🌳', gradient: 'park', label: 'Park' },
+const VIBES: { emoji: string; gradient: GradientKey; label: string; kind: string }[] = [
+  { emoji: '🌲', gradient: 'woods', label: 'Woods', kind: 'woods' },
+  { emoji: '🏖️', gradient: 'beach', label: 'Beach', kind: 'beach' },
+  { emoji: '🐐', gradient: 'farm', label: 'Farm', kind: 'farm' },
+  { emoji: '🏰', gradient: 'castle', label: 'Castle', kind: 'castle' },
+  { emoji: '🤸', gradient: 'soft', label: 'Play', kind: 'play' },
+  { emoji: '🦕', gradient: 'museum', label: 'Museum', kind: 'museum' },
+  { emoji: '🌳', gradient: 'park', label: 'Park', kind: 'park' },
 ];
 
 const TAGS: Tag[] = ['toddler', 'rainy', 'free', 'outdoors', 'fullday', 'other'];
@@ -29,10 +29,13 @@ export default function AddScreen() {
   const { addPlace, addPhoto } = useStore();
   const hiddenTags = useHiddenTags();
   const visibleTags = TAGS.filter((t) => !hiddenTags.includes(t));
+  const visibleVibes = VIBES.filter((v) => !hiddenTags.includes(v.kind));
 
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [vibe, setVibe] = useState(0);
+  const [vibeKey, setVibeKey] = useState<GradientKey>('woods');
+  // If the chosen look gets hidden in preferences, fall back to the first visible.
+  const activeVibe = visibleVibes.find((v) => v.gradient === vibeKey) ?? visibleVibes[0] ?? VIBES[0];
   const [tags, setTags] = useState<Set<Tag>>(new Set());
   const [status, setStatus] = useState<Status>('not_yet');
   const [cost, setCost] = useState('');
@@ -69,8 +72,8 @@ export default function AddScreen() {
       const place = await addPlace({
         name: name.trim(),
         location: location.trim() || undefined,
-        emoji: VIBES[vibe].emoji,
-        gradient: VIBES[vibe].gradient,
+        emoji: activeVibe.emoji,
+        gradient: activeVibe.gradient,
         status,
         tags: Array.from(tags),
         cost: cost.trim() || undefined,
@@ -119,8 +122,8 @@ export default function AddScreen() {
 
       <Field label="Pick a look">
         <View style={styles.wrap}>
-          {VIBES.map((v, i) => (
-            <Pressable key={v.gradient} onPress={() => setVibe(i)} style={{ alignItems: 'center', gap: 4 }}>
+          {visibleVibes.map((v) => (
+            <Pressable key={v.gradient} onPress={() => setVibeKey(v.gradient)} style={{ alignItems: 'center', gap: 4 }}>
               <GradientPhoto
                 gradient={v.gradient}
                 emoji={v.emoji}
@@ -129,7 +132,7 @@ export default function AddScreen() {
                 style={{
                   width: 52,
                   height: 52,
-                  borderWidth: i === vibe ? 3 : 0,
+                  borderWidth: v.gradient === activeVibe.gradient ? 3 : 0,
                   borderColor: c.primary,
                 }}
               />
