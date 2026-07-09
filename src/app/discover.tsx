@@ -36,34 +36,37 @@ export default function DiscoverScreen() {
   const homeTown = (user?.user_metadata?.home_town as string | undefined) ?? '';
   const [area, setArea] = useState(homeTown);
   const [category, setCategory] = useState('all');
-  const [radius, setRadius] = useState('20');
+  const [radiusMi, setRadiusMi] = useState('20');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Suggestion[]>([]);
+  const [service, setService] = useState<string | undefined>();
+  const [searched, setSearched] = useState(false);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  const [preview, setPreview] = useState<Suggestion | null>(null);
 
-  const search = useCallback(
-    async (town: string, cat: string, rad: string) => {
-      if (!town.trim()) return;
-      setLoading(true);
-      setError(null);
-      try {
-        setResults(await discoverPlaces(town.trim(), cat === 'all' ? undefined : cat, Number(rad)));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Something went wrong.');
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const search = useCallback(async (town: string, cat: string, rad: string) => {
+    if (!town.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await discoverPlaces(town.trim(), cat === 'all' ? undefined : cat, Number(rad));
+      setResults(res.places);
+      setService(res.service);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong.');
+      setResults([]);
+    } finally {
+      setLoading(false);
+      setSearched(true);
+    }
+  }, []);
 
   // Auto-search on open (and when category/radius changes) if we know the town.
   useEffect(() => {
-    if (cloud && homeTown.trim()) search(homeTown, category, radius);
+    if (cloud && homeTown.trim()) search(homeTown, category, radiusMi);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, radius, cloud]);
+  }, [category, radiusMi, cloud]);
 
   const add = async (s: Suggestion) => {
     setAddedIds((prev) => new Set(prev).add(s.googleId));
@@ -81,7 +84,7 @@ export default function DiscoverScreen() {
     if (s.photoUrl) addPhoto(place.id, { id: makeId('photo'), uri: s.photoUrl });
   };
 
-  const alreadyOnList = (s: Suggestion) => places.some((p) => p.name === s.name);
+  const isAdded = (s: Suggestion) => addedIds.has(s.googleId) || places.some((p) => p.name === s.name);
 
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: c.surface }}>
@@ -104,17 +107,17 @@ export default function DiscoverScreen() {
             <TextInput
               value={area}
               onChangeText={setArea}
-              placeholder="Town or area"
+              placeholder="Town or postcode"
               placeholderTextColor={c.inkFaint}
-              onSubmitEditing={() => search(area, category, radius)}
+              onSubmitEditing={() => search(area, category, radiusMi)}
               style={[styles.input, { backgroundColor: c.card, borderColor: c.line, color: c.ink }]}
             />
-            <Pressable onPress={() => search(area, category, radius)} style={[styles.searchBtn, { backgroundColor: c.primary }]}>
+            <Pressable onPress={() => search(area, category, radiusMi)} style={[styles.searchBtn, { backgroundColor: c.primary }]}>
               <Text style={{ color: c.onPrimary, fontWeight: '800', fontFamily: fontRounded }}>Find</Text>
             </Pressable>
           </View>
 
-          <FilterChips options={RADII} active={radius} onChange={setRadius} />
+          <FilterChips options={RADII} active={radiusMi} onChange={setRadiusMi} />
           <FilterChips options={CATEGORIES} active={category} onChange={setCategory} />
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
@@ -126,21 +129,27 @@ export default function DiscoverScreen() {
             ) : error ? (
               <View style={styles.centre}>
                 <Text style={[styles.muted, { color: c.clay, textAlign: 'center' }]}>{error}</Text>
-                <Pressable onPress={() => search(area, category, radius)} style={[styles.retry, { borderColor: c.line }]}>
+                <Pressable onPress={() => search(area, category, radiusMi)} style={[styles.retry, { borderColor: c.line }]}>
                   <Text style={{ color: c.primary, fontWeight: '700' }}>Try again</Text>
                 </Pressable>
               </View>
             ) : results.length === 0 ? (
               <View style={styles.centre}>
                 <Text style={[styles.muted, { color: c.inkSoft, textAlign: 'center' }]}>
-                  {area.trim() ? 'No ideas yet — try a bigger radius or a different filter.' : 'Type a town above to find ideas.'}
+                  {searched
+                    ? 'No ideas within that radius — try widening it or a different filter.'
+                    : 'Type a town or postcode above to find ideas.'}
                 </Text>
               </View>
             ) : (
               results.map((s) => {
-                const added = addedIds.has(s.googleId) || alreadyOnList(s);
+                const added = isAdded(s);
                 return (
-                  <View key={s.googleId} style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]}>
+                  <Pressable
+                    key={s.googleId}
+                    onPress={() => setPreview(s)}
+                    style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]}
+                  >
                     {s.photoUrl ? (
                       <Image source={{ uri: s.photoUrl }} style={{ height: 140, width: '100%' }} resizeMode="cover" />
                     ) : (
@@ -148,31 +157,93 @@ export default function DiscoverScreen() {
                     )}
                     <View style={{ padding: 14 }}>
                       <Text style={[styles.name, { color: c.ink }]}>{s.name}</Text>
-                      {s.address ? <Text style={[styles.addr, { color: c.inkSoft }]} numberOfLines={1}>📍 {s.address}</Text> : null}
+                      {s.address ? (
+                        <Text style={[styles.addr, { color: c.inkSoft }]} numberOfLines={1}>
+                          📍 {s.address}
+                        </Text>
+                      ) : null}
                       <View style={styles.meta}>
                         {s.rating ? <Text style={[styles.metaItem, { color: c.star }]}>★ {s.rating.toFixed(1)}</Text> : null}
                         {s.cost ? <Text style={[styles.metaItem, { color: c.inkSoft }]}>💷 {s.cost}</Text> : null}
                         {s.tags.slice(0, 2).map((t) => (
-                          <Text key={t} style={[styles.metaItem, { color: c.inkSoft }]}>{TAG_META[t]?.label ?? t}</Text>
+                          <Text key={t} style={[styles.metaItem, { color: c.inkSoft }]}>
+                            {TAG_META[t]?.label ?? t}
+                          </Text>
                         ))}
                       </View>
-                      <Pressable
-                        onPress={() => add(s)}
-                        disabled={added}
-                        style={[styles.addBtn, { backgroundColor: added ? c.primaryTint : c.primary }]}
-                      >
-                        <Text style={{ color: added ? c.primary : c.onPrimary, fontWeight: '800', fontFamily: fontRounded }}>
-                          {added ? '✓ On your list' : '＋ Add to my list'}
+                      <View style={[styles.previewHint, { backgroundColor: added ? c.primaryTint : c.card2 }]}>
+                        <Text style={{ color: added ? c.primary : c.inkSoft, fontWeight: '700', fontSize: 13 }}>
+                          {added ? '✓ On your list' : 'Tap for details'}
                         </Text>
-                      </Pressable>
+                      </View>
                     </View>
-                  </View>
+                  </Pressable>
                 );
               })
             )}
+
+            {searched && !loading ? (
+              <Text style={[styles.service, { color: service ? c.inkFaint : c.amber }]}>
+                {service
+                  ? `Search service ${service}`
+                  : '⚠️ The search service looks out of date — paste & redeploy the discover function in Supabase.'}
+              </Text>
+            ) : null}
           </ScrollView>
         </>
       )}
+
+      {/* ---- Preview overlay: look before you add ---- */}
+      {preview ? (
+        <View style={styles.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPreview(null)} />
+          <View style={[styles.sheet, { backgroundColor: c.card, borderColor: c.line }]}>
+            {preview.photoUrl ? (
+              <Image source={{ uri: preview.photoUrl }} style={styles.sheetPhoto} resizeMode="cover" />
+            ) : (
+              <GradientPhoto gradient={preview.gradient} emoji={preview.emoji} fontSize={54} style={styles.sheetPhoto} />
+            )}
+            <View style={{ padding: 18 }}>
+              <Text style={[styles.sheetName, { color: c.ink }]}>{preview.name}</Text>
+              {preview.address ? <Text style={[styles.addr, { color: c.inkSoft }]}>📍 {preview.address}</Text> : null}
+
+              <View style={[styles.meta, { marginTop: 10 }]}>
+                {preview.rating ? <Text style={[styles.metaItem, { color: c.star }]}>★ {preview.rating.toFixed(1)} on Google</Text> : null}
+                {preview.cost ? <Text style={[styles.metaItem, { color: c.inkSoft }]}>💷 {preview.cost}</Text> : null}
+              </View>
+
+              <View style={styles.tagWrap}>
+                {preview.tags.map((t) => (
+                  <View key={t} style={[styles.tagChip, { backgroundColor: c.card2 }]}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: c.inkSoft }}>
+                      {TAG_META[t]?.emoji} {TAG_META[t]?.label ?? t}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={[styles.summary, { color: c.inkSoft }]}>
+                {preview.summary ?? 'No description available — a mystery worth exploring? 🕵️'}
+              </Text>
+
+              <Pressable
+                onPress={() => {
+                  if (!isAdded(preview)) add(preview);
+                  setPreview(null);
+                }}
+                style={[styles.sheetCta, { backgroundColor: isAdded(preview) ? c.primaryTint : c.primary }]}
+              >
+                <Text style={{ color: isAdded(preview) ? c.primary : c.onPrimary, fontWeight: '800', fontFamily: fontRounded, fontSize: 15 }}>
+                  {isAdded(preview) ? '✓ Already on your list' : '＋ Add to my list'}
+                </Text>
+              </Pressable>
+              <Pressable onPress={() => setPreview(null)} style={styles.sheetClose}>
+                <Text style={{ color: c.inkSoft, fontWeight: '700' }}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -193,5 +264,16 @@ const styles = StyleSheet.create({
   addr: { fontSize: 12.5, marginTop: 5 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 9 },
   metaItem: { fontSize: 12.5, fontWeight: '600' },
-  addBtn: { marginTop: 14, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+  previewHint: { marginTop: 12, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
+  service: { textAlign: 'center', fontSize: 11.5, marginTop: 6, lineHeight: 16 },
+
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(20,31,27,0.5)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  sheet: { width: '100%', maxWidth: 420, borderRadius: radius.lg, borderWidth: 1, overflow: 'hidden' },
+  sheetPhoto: { height: 170, width: '100%', alignItems: 'center', justifyContent: 'center' },
+  sheetName: { fontSize: 20, fontWeight: '800', fontFamily: fontRounded },
+  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
+  tagChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  summary: { fontSize: 13.5, lineHeight: 19, marginTop: 12 },
+  sheetCta: { marginTop: 16, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  sheetClose: { alignItems: 'center', paddingVertical: 12 },
 });

@@ -1,12 +1,15 @@
 // Trove — "Discover" backend function (Supabase Edge Function)
 // -----------------------------------------------------------
 // Securely calls the Google Places API so the API key never reaches the app.
-// The app sends a town + optional category + radius; this returns a tidy list
-// of family-friendly suggestions mapped to Trove's own categories, limited to
-// the chosen distance from the town.
+// The app sends a town/postcode + optional category + radius; this returns a
+// tidy list of family-friendly suggestions (with real photos) mapped to
+// Trove's categories, strictly limited to the chosen distance.
 //
 // Deploy: Supabase dashboard → Edge Functions → "discover" → Code tab → paste
 // this → Deploy. Secret GOOGLE_PLACES_KEY must be set. Verify JWT: OFF.
+
+/** Bumped on every change; returned to the app so deploys are verifiable. */
+const FN_VERSION = 'd3';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -14,8 +17,11 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+const json = (body: Record<string, unknown>, status = 200) =>
+  new Response(JSON.stringify({ ...body, fnVersion: FN_VERSION }), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
 
 const PLACES_URL = 'https://places.googleapis.com/v1/places:searchText';
 
@@ -28,6 +34,13 @@ const CATEGORY_QUERY: Record<string, string> = {
   fullday: 'full day',
   other: '',
 };
+
+/** "cf453bd" → "CF45 3BD"; anything that isn't a UK postcode passes through. */
+function normalizeUkPostcode(s: string): string {
+  const t = s.trim().toUpperCase().replace(/\s+/g, '');
+  if (/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(t)) return `${t.slice(0, -3)} ${t.slice(-3)}`;
+  return s.trim();
+}
 
 // Map Google place "types" to a Trove look (gradient + emoji) and tags.
 function classify(types: string[]): { gradient: string; emoji: string; tags: string[] } {
@@ -103,7 +116,7 @@ function milesBetween(a: { lat: number; lng: number }, b: { lat: number; lng: nu
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-// Find a town's centre point (via one lightweight Places lookup — no extra API).
+// Find the search area's centre point (one lightweight Places lookup).
 async function geocodeTown(town: string, key: string): Promise<{ lat: number; lng: number } | null> {
   const resp = await fetch(PLACES_URL, {
     method: 'POST',
@@ -112,7 +125,7 @@ async function geocodeTown(town: string, key: string): Promise<{ lat: number; ln
       'X-Goog-Api-Key': key,
       'X-Goog-FieldMask': 'places.location',
     },
-    body: JSON.stringify({ textQuery: town, maxResultCount: 1, languageCode: 'en' }),
+    body: JSON.stringify({ textQuery: town, maxResultCount: 1, languageCode: 'en', regionCode: 'GB' }),
   });
   if (!resp.ok) return null;
   const data = await resp.json();
@@ -129,7 +142,15 @@ Deno.serve(async (req: Request) => {
     const key = Deno.env.get('GOOGLE_PLACES_KEY');
     if (!key) return json({ error: 'The places service is not configured yet.' }, 500);
 
-    const cleanTown = String(town).trim();
+    const cleanTown = normalizeUkPostcode(String(town));
+    const radius = Math.min(Math.max(Number(radiusMiles) || 20, 1), 60);
+
+    // The centre point is required — never silently skip the radius.
+    const centre = await geocodeTown(cleanTown, key);
+    if (!centre) {
+      return json({ error: `Couldn't find "${cleanTown}" — try a town name or a full postcode.` }, 400);
+    }
+
     const hint = category && CATEGORY_QUERY[category] ? ` ${CATEGORY_QUERY[category]}` : '';
     const textQuery = `family friendly days out${hint} near ${cleanTown}`;
 
@@ -141,27 +162,31 @@ Deno.serve(async (req: Request) => {
         'X-Goog-FieldMask':
           'places.id,places.displayName,places.formattedAddress,places.location,places.types,places.rating,places.priceLevel,places.editorialSummary,places.photos',
       },
-      body: JSON.stringify({ textQuery, maxResultCount: 20, languageCode: 'en' }),
+      body: JSON.stringify({
+        textQuery,
+        maxResultCount: 20,
+        languageCode: 'en',
+        regionCode: 'GB',
+        // Steer Google towards the area (max bias circle is 50km)…
+        locationBias: {
+          circle: {
+            center: { latitude: centre.lat, longitude: centre.lng },
+            radius: Math.min(radius * 1609.34, 50000),
+          },
+        },
+      }),
     });
 
     const data = await resp.json();
     if (!resp.ok) return json({ error: data.error?.message ?? 'The search could not be completed.' }, 502);
 
+    // …and strictly enforce the radius ourselves (bias alone isn't a guarantee).
     // deno-lint-ignore no-explicit-any
-    let raw: any[] = data.places ?? [];
-
-    // Limit to the chosen radius from the town centre.
-    const radius = Number(radiusMiles);
-    if (radius && radius > 0) {
-      const centre = await geocodeTown(cleanTown, key);
-      if (centre) {
-        raw = raw.filter((p) => {
-          const loc = p.location;
-          if (!loc) return false;
-          return milesBetween(centre, { lat: loc.latitude, lng: loc.longitude }) <= radius;
-        });
-      }
-    }
+    const raw: any[] = (data.places ?? []).filter((p: any) => {
+      const loc = p.location;
+      if (!loc) return false;
+      return milesBetween(centre, { lat: loc.latitude, lng: loc.longitude }) <= radius;
+    });
 
     const mapped = raw.map((p) => mapPlace(p));
 
