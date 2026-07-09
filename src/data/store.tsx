@@ -45,6 +45,8 @@ type StoreValue = {
   updatePlace: (id: string, patch: Partial<Place>) => void;
   removePlace: (id: string) => void;
   refresh: () => void;
+  /** Re-resolve the family from scratch (e.g. right after joining a new one). */
+  reconnect: () => void;
   /** Last cloud-sync error message (so the UI can surface why a save failed). */
   cloudError: string | null;
   clearError: () => void;
@@ -66,6 +68,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [cloudError, setCloudError] = useState<string | null>(null);
+  const [generation, setGeneration] = useState(0); // bumped to force a fresh family connect
   const familyIdRef = useRef<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -144,7 +147,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       active = false;
       if (channel) supabase!.removeChannel(channel);
     };
-  }, [useCloud, reload]);
+  }, [useCloud, generation, reload]);
 
   const value = useMemo<StoreValue>(() => {
     const fid = () => familyIdRef.current;
@@ -241,6 +244,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       refresh: () => {
         if (useCloud) reload();
       },
+
+      reconnect: () => setGeneration((g) => g + 1),
     };
   }, [places, loaded, useCloud, familyId, cloudError, myName, reload]);
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { GradientPhoto } from '@/components/GradientPhoto';
 import { Screen } from '@/components/Screen';
+import { useHiddenTags } from '@/data/auth';
 import { makeId } from '@/data/seed';
 import { useStore } from '@/data/store';
 import { STATUS_META, STATUS_ORDER, TAG_META, type Status, type Tag } from '@/data/types';
@@ -26,6 +27,8 @@ export default function AddScreen() {
   const { c } = useTheme();
   const router = useRouter();
   const { addPlace, addPhoto } = useStore();
+  const hiddenTags = useHiddenTags();
+  const visibleTags = TAGS.filter((t) => !hiddenTags.includes(t));
 
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
@@ -138,7 +141,7 @@ export default function AddScreen() {
 
       <Field label="What kind of day out?">
         <View style={styles.wrap}>
-          {TAGS.map((t) => (
+          {visibleTags.map((t) => (
             <Pick key={t} on={tags.has(t)} onPress={() => toggleTag(t)} label={`${TAG_META[t].emoji} ${TAG_META[t].label}`} />
           ))}
         </View>

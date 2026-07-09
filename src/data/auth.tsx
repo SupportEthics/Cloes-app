@@ -11,7 +11,7 @@ type AuthValue = {
   cloud: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error?: string; needsConfirmation?: boolean }>;
-  updateProfile: (fields: { name?: string; homeTown?: string }) => Promise<{ error?: string }>;
+  updateProfile: (fields: { name?: string; homeTown?: string; hiddenTags?: string[] }) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
 };
 
@@ -66,11 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // If email confirmation is on, there's no session until they confirm.
         return { needsConfirmation: !data.session };
       },
-      updateProfile: async ({ name, homeTown }) => {
+      updateProfile: async ({ name, homeTown, hiddenTags }) => {
         if (!supabase) return {};
         const data: Record<string, unknown> = {};
         if (name !== undefined) data.display_name = name.trim();
         if (homeTown !== undefined) data.home_town = homeTown.trim();
+        if (hiddenTags !== undefined) data.hidden_tags = hiddenTags;
         const { error } = await supabase.auth.updateUser({ data });
         return error ? { error: error.message } : {};
       },
@@ -89,4 +90,10 @@ export function useAuth(): AuthValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
   return ctx;
+}
+
+/** Categories this user has switched off in their profile preferences. */
+export function useHiddenTags(): string[] {
+  const { user } = useAuth();
+  return (user?.user_metadata?.hidden_tags as string[] | undefined) ?? [];
 }

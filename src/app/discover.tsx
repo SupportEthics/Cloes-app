@@ -4,7 +4,7 @@ import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { GradientPhoto } from '@/components/GradientPhoto';
-import { useAuth } from '@/data/auth';
+import { useAuth, useHiddenTags } from '@/data/auth';
 import { discoverPlaces, fetchPlaceDetails, type PlaceDetails, type Suggestion } from '@/data/discover';
 import { makeId } from '@/data/seed';
 import { useStore } from '@/data/store';
@@ -42,6 +42,8 @@ export default function DiscoverScreen() {
   const { addPlace, addPhoto, places } = useStore();
 
   const homeTown = (user?.user_metadata?.home_town as string | undefined) ?? '';
+  const hiddenTags = useHiddenTags();
+  const visibleCategories = CATEGORIES.filter((o) => !hiddenTags.includes(o.key));
   const [area, setArea] = useState(homeTown);
   const [cats, setCats] = useState<string[]>([]); // empty = All
   const [radiusMi, setRadiusMi] = useState('20');
@@ -147,7 +149,7 @@ export default function DiscoverScreen() {
           </View>
 
           <FilterChips options={RADII} active={radiusMi} onChange={setRadiusMi} />
-          <FilterChips options={CATEGORIES} active={cats.length ? cats : 'all'} onChange={toggleCat} />
+          <FilterChips options={visibleCategories} active={cats.length ? cats : 'all'} onChange={toggleCat} />
 
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: space.lg, paddingTop: 4, gap: 14 }} showsVerticalScrollIndicator={false}>
             {!loading && searchedNear && results.length > 0 ? (

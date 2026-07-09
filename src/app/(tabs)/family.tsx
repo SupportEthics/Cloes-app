@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/data/auth';
 import { getInviteCode, joinFamilyByCode } from '@/data/cloud';
@@ -15,7 +15,7 @@ const MEMBERS = [
 
 export default function FamilyScreen() {
   const { c } = useTheme();
-  const { places, cloud, familyId, refresh } = useStore();
+  const { places, cloud, familyId, reconnect } = useStore();
   const { user, signOut } = useAuth();
   const visited = places.filter((p) => p.visits.length).length;
 
@@ -41,7 +41,7 @@ export default function FamilyScreen() {
       </View>
 
       {cloud ? (
-        <CloudPanel familyId={familyId} email={user?.email ?? null} onJoined={refresh} onSignOut={signOut} />
+        <CloudPanel familyId={familyId} email={user?.email ?? null} onJoined={reconnect} onSignOut={signOut} />
       ) : (
         <View style={[styles.summary, { backgroundColor: c.card, borderColor: c.line }]}>
           <Text style={[styles.summaryTitle, { color: c.ink }]}>Sharing is off</Text>
@@ -111,6 +111,18 @@ function CloudPanel({
         <Text style={[styles.summaryTitle, { color: c.ink }]}>Invite your family</Text>
         <Text style={[styles.summaryBody, { color: c.inkSoft }]}>Share this code so they can join your journal:</Text>
         <Text style={[styles.code, { color: c.ink, backgroundColor: c.card2, borderColor: c.line }]}>{code ?? '····'}</Text>
+        {code ? (
+          <Pressable
+            onPress={() =>
+              Share.share({
+                message: `Join our family adventure journal on Trove! 🌱 Open https://supportethics.github.io/Cloes-app/ , create an account, then enter invite code ${code} under Family → Join a family.`,
+              }).catch(() => {})
+            }
+            style={[styles.shareBtn, { backgroundColor: c.primary }]}
+          >
+            <Text style={{ color: c.onPrimary, fontWeight: '800', fontFamily: fontRounded }}>Share invite</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={[styles.summary, { backgroundColor: c.card, borderColor: c.line }]}>
@@ -163,6 +175,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 12,
   },
+  shareBtn: { marginTop: 12, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   input: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 13, fontSize: 15, letterSpacing: 1 },
   joinBtn: { paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   signout: { alignItems: 'center', marginTop: space.lg, padding: 10 },

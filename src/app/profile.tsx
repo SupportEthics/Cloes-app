@@ -3,8 +3,11 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/data/auth';
+import { useAuth, useHiddenTags } from '@/data/auth';
+import { TAG_META, type Tag } from '@/data/types';
 import { fontRounded, radius, space, useTheme } from '@/theme';
+
+const ALL_TAGS = Object.keys(TAG_META) as Tag[];
 
 export default function ProfileScreen() {
   const { c } = useTheme();
@@ -15,6 +18,15 @@ export default function ProfileScreen() {
   const initialTown = (user?.user_metadata?.home_town as string | undefined) ?? '';
   const [name, setName] = useState(initialName);
   const [town, setTown] = useState(initialTown);
+  const hiddenFromProfile = useHiddenTags();
+  const [hidden, setHidden] = useState<string[]>(hiddenFromProfile);
+
+  // Category toggles apply instantly (no Save button needed for these).
+  const toggleTag = (t: Tag) => {
+    const next = hidden.includes(t) ? hidden.filter((x) => x !== t) : [...hidden, t];
+    setHidden(next);
+    updateProfile({ hiddenTags: next });
+  };
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +94,34 @@ export default function ProfileScreen() {
               <Text style={[styles.ctaText, { color: c.onPrimary }]}>{busy ? 'Saving…' : 'Save changes'}</Text>
             </Pressable>
 
+            {/* Category preferences — hide the ones this family never uses */}
+            <View style={{ width: '100%', marginTop: space.xl }}>
+              <Text style={[styles.label, { color: c.inkFaint }]}>Categories you use</Text>
+              <Text style={[styles.catHint, { color: c.inkSoft }]}>
+                Tap to hide categories that don't fit your family (e.g. no little ones? hide Toddler-friendly). They
+                disappear from adding, filters and Discover — just for you. Changes save instantly.
+              </Text>
+              <View style={styles.catWrap}>
+                {ALL_TAGS.map((t) => {
+                  const off = hidden.includes(t);
+                  return (
+                    <Pressable
+                      key={t}
+                      onPress={() => toggleTag(t)}
+                      style={[
+                        styles.catChip,
+                        { backgroundColor: off ? c.card2 : c.primaryTint, borderColor: off ? c.line : c.primary },
+                      ]}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: off ? c.inkFaint : c.primary, textDecorationLine: off ? 'line-through' : 'none' }}>
+                        {TAG_META[t].emoji} {TAG_META[t].label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
             <Pressable onPress={signOut} style={styles.signout}>
               <Text style={[styles.signoutText, { color: c.clay }]}>Sign out</Text>
             </Pressable>
@@ -124,6 +164,9 @@ const styles = StyleSheet.create({
   msg: { fontSize: 13.5, marginTop: 14, fontWeight: '600' },
   cta: { marginTop: space.xl, borderRadius: 16, padding: 16, alignItems: 'center', width: '100%' },
   ctaText: { fontSize: 15.5, fontWeight: '800', fontFamily: fontRounded },
+  catHint: { fontSize: 12.5, lineHeight: 18, marginBottom: 12 },
+  catWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  catChip: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 999, borderWidth: 1 },
   signout: { marginTop: space.lg, padding: 10 },
   signoutText: { fontSize: 14, fontWeight: '700' },
   note: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: space.lg },

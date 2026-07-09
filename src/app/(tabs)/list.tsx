@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { FilterChips, type ChipOption } from '@/components/FilterChips';
 import { PlaceCard } from '@/components/PlaceCard';
 import { Screen } from '@/components/Screen';
+import { useHiddenTags } from '@/data/auth';
 import { useStore } from '@/data/store';
 import type { Place, Status, Tag } from '@/data/types';
 import { fontRounded, space, useTheme } from '@/theme';
@@ -18,6 +19,7 @@ function matches(place: Place, key: string): boolean {
 export default function ListScreen() {
   const { c } = useTheme();
   const { places } = useStore();
+  const hiddenTags = useHiddenTags();
   const [filter, setFilter] = useState('all');
 
   const filters: ChipOption[] = [
@@ -29,9 +31,10 @@ export default function ListScreen() {
     { key: 'rainy', label: '🌧️ Rainy day' },
     { key: 'free', label: 'Free' },
     { key: 'toddler', label: 'Toddler-friendly' },
+    { key: 'outdoors', label: 'Outdoors' },
     { key: 'fullday', label: 'Full day' },
     { key: 'other', label: 'Other' },
-  ];
+  ].filter((f) => !hiddenTags.includes(f.key));
 
   const shown = useMemo(() => places.filter((p) => matches(p, filter)), [places, filter]);
 

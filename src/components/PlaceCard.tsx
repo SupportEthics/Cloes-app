@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useHiddenTags } from '@/data/auth';
 import { displayRating, TAG_META, type Place } from '@/data/types';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 import { GradientPhoto } from './GradientPhoto';
@@ -11,6 +12,8 @@ export function PlaceCard({ place }: { place: Place }) {
   const router = useRouter();
   const rating = displayRating(place) ?? place.googleRating;
   const heroUri = place.photos.find((ph) => ph.uri)?.uri;
+  const hiddenTags = useHiddenTags();
+  const shownTags = place.tags.filter((t) => !hiddenTags.includes(t));
 
   const overlay = (
     <>
@@ -45,7 +48,7 @@ export function PlaceCard({ place }: { place: Place }) {
           <Text style={[styles.metaItem, { color: c.star }]}>★ {rating ? rating.toFixed(1) : '—'}</Text>
         </View>
         <View style={styles.tags}>
-          {place.tags.slice(0, 3).map((t) => (
+          {shownTags.slice(0, 3).map((t) => (
             <View key={t} style={[styles.tag, { backgroundColor: c.card2 }]}>
               <Text style={[styles.tagText, { color: c.inkSoft }]}>{TAG_META[t].label}</Text>
             </View>
