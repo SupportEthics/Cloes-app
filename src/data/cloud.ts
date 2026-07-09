@@ -31,7 +31,7 @@ function toVisit(r: any): Visit {
 }
 
 function toPhoto(r: any): Photo {
-  return { id: r.id, uri: r.uri ?? undefined, emoji: r.emoji ?? undefined };
+  return { id: r.id, uri: r.uri ?? undefined, emoji: r.emoji ?? undefined, addedBy: r.added_by ?? undefined };
 }
 
 function toPlace(r: any): Place {
@@ -47,6 +47,8 @@ function toPlace(r: any): Place {
     status: r.status,
     tags: r.tags ?? [],
     cost: r.cost ?? undefined,
+    googleRating: r.google_rating != null ? Number(r.google_rating) : undefined,
+    familyRating: r.family_rating ?? undefined,
     notes: r.notes ?? [],
     visits,
     photos: (r.photos ?? []).map(toPhoto),
@@ -85,6 +87,8 @@ export async function insertPlace(familyId: string, place: Place): Promise<void>
     status: place.status,
     tags: place.tags,
     cost: place.cost ?? null,
+    google_rating: place.googleRating ?? null,
+    family_rating: place.familyRating ?? null,
     notes: place.notes,
     created_at: place.createdAt,
   });
@@ -99,6 +103,8 @@ export async function updatePlace(id: string, patch: Partial<Place>): Promise<vo
   if (patch.location !== undefined) row.location = patch.location;
   if (patch.tags !== undefined) row.tags = patch.tags;
   if (patch.cost !== undefined) row.cost = patch.cost;
+  if (patch.familyRating !== undefined) row.family_rating = patch.familyRating;
+  if (patch.googleRating !== undefined) row.google_rating = patch.googleRating;
   if (Object.keys(row).length === 0) return;
   const { error } = await client().from('places').update(row).eq('id', id);
   if (error) throw error;
@@ -121,7 +127,14 @@ export async function insertVisit(familyId: string, placeId: string, visit: Visi
 export async function insertPhoto(familyId: string, placeId: string, photo: Photo): Promise<void> {
   const { error } = await client()
     .from('photos')
-    .insert({ id: photo.id, family_id: familyId, place_id: placeId, uri: photo.uri ?? null, emoji: photo.emoji ?? null });
+    .insert({
+      id: photo.id,
+      family_id: familyId,
+      place_id: placeId,
+      uri: photo.uri ?? null,
+      emoji: photo.emoji ?? null,
+      added_by: photo.addedBy ?? null,
+    });
   if (error) throw error;
 }
 

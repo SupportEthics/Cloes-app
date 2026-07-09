@@ -78,6 +78,7 @@ export default function DiscoverScreen() {
       status: 'not_yet',
       tags: s.tags,
       cost: s.cost,
+      googleRating: s.rating,
       notes: s.summary ? [s.summary] : [],
     });
     // Keep the real photo with the saved place.

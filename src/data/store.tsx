@@ -57,6 +57,10 @@ const StoreContext = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { cloud, session } = useAuth();
   const useCloud = cloud && !!session;
+  const myName =
+    (session?.user?.user_metadata?.display_name as string | undefined) ||
+    session?.user?.email?.split('@')[0] ||
+    undefined;
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -197,7 +201,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (useCloud && fid()) insertVisit(fid()!, id, visit).catch(onWriteError);
       },
 
-      addPhoto: (id, photo) => {
+      addPhoto: (id, rawPhoto) => {
+        // Credit the memory to whoever added it.
+        const photo: Photo = { addedBy: myName, ...rawPhoto };
         // Show the picked image immediately…
         patchOne(id, (p) => ({ ...p, photos: [...p.photos, photo] }));
         if (useCloud && fid()) {
@@ -236,7 +242,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (useCloud) reload();
       },
     };
-  }, [places, loaded, useCloud, familyId, cloudError, reload]);
+  }, [places, loaded, useCloud, familyId, cloudError, myName, reload]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

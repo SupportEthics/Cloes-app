@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ImageBackground, Pressable, StyleSheet, Text, View } from 'react-native';
-import { averageRating, TAG_META, type Place } from '@/data/types';
+import { displayRating, TAG_META, type Place } from '@/data/types';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 import { GradientPhoto } from './GradientPhoto';
 import { StatusPill } from './StatusPill';
@@ -9,7 +9,7 @@ import { StatusPill } from './StatusPill';
 export function PlaceCard({ place }: { place: Place }) {
   const { c } = useTheme();
   const router = useRouter();
-  const rating = averageRating(place);
+  const rating = displayRating(place) ?? place.googleRating;
   const heroUri = place.photos.find((ph) => ph.uri)?.uri;
 
   const overlay = (

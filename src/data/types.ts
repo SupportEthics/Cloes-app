@@ -22,6 +22,8 @@ export interface Photo {
   uri?: string;
   /** … or an emoji stand-in for seeded/demo memories. */
   emoji?: string;
+  /** Who added it — shown as a little credit under the memory. */
+  addedBy?: string;
 }
 
 export interface Place {
@@ -33,6 +35,10 @@ export interface Place {
   status: Status;
   tags: Tag[];
   cost?: string;
+  /** Google's public rating, captured when added via Discover. */
+  googleRating?: number;
+  /** The family's own star rating, set on the place page. */
+  familyRating?: number;
   notes: string[]; // notes for next time
   visits: Visit[];
   photos: Photo[];
@@ -48,6 +54,8 @@ export type NewPlace = {
   status: Status;
   tags: Tag[];
   cost?: string;
+  googleRating?: number;
+  familyRating?: number;
   notes?: string[];
 };
 
@@ -80,6 +88,11 @@ export function averageRating(place: Place): number | undefined {
   const rated = place.visits.map((v) => v.rating).filter((r): r is number => typeof r === 'number');
   if (!rated.length) return undefined;
   return rated.reduce((a, b) => a + b, 0) / rated.length;
+}
+
+/** The rating shown on cards: the family's own stars first, else visit average. */
+export function displayRating(place: Place): number | undefined {
+  return place.familyRating ?? averageRating(place);
 }
 
 /** Most recent visit date, or undefined for bucket-list-only places. */

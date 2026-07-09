@@ -22,7 +22,7 @@ export default function PlaceDetail() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getPlace, setStatus, logVisit, addPhoto } = useStore();
+  const { getPlace, setStatus, logVisit, addPhoto, updatePlace } = useStore();
   const [hearted, setHearted] = useState(true);
 
   const place = getPlace(id);
@@ -39,7 +39,7 @@ export default function PlaceDetail() {
   }
 
   const last = lastVisit(place);
-  const rating = averageRating(place);
+  const ourRating = place.familyRating ?? averageRating(place);
   const recent = place.visits[0];
   const heroUri = place.photos.find((ph) => ph.uri)?.uri;
 
@@ -114,7 +114,20 @@ export default function PlaceDetail() {
 
           {/* Stats */}
           <View style={styles.statGrid}>
-            <DStat k="Rating" v={rating ? `★ ${rating.toFixed(1)}` : '—'} color={c.star} />
+            {/* The family's own stars — tap to set */}
+            <View style={[styles.dstat, { backgroundColor: c.card, borderColor: c.line }]}>
+              <Text style={[styles.dstatK, { color: c.inkFaint }]}>OUR RATING · TAP TO SET</Text>
+              <View style={styles.starRow}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Pressable key={n} onPress={() => updatePlace(place.id, { familyRating: n })} hitSlop={6}>
+                    <Text style={{ fontSize: 21, color: (ourRating ?? 0) >= n ? c.star : c.line }}>★</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+            {typeof place.googleRating === 'number' ? (
+              <DStat k="Google rating" v={`★ ${place.googleRating.toFixed(1)}`} color={c.star} />
+            ) : null}
             <DStat k="Cost" v={place.cost ?? '—'} />
             {place.location ? <DStat k="Where" v={place.location} /> : null}
             <DStat k="Who came" v={recent?.companions?.join(', ') ?? '—'} />
@@ -140,13 +153,20 @@ export default function PlaceDetail() {
             Memories {place.photos.length ? `· ${place.photos.length}` : ''}
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9 }}>
-            {place.photos.map((ph) =>
-              ph.uri ? (
-                <Image key={ph.id} source={{ uri: ph.uri }} style={styles.photo} />
-              ) : (
-                <GradientPhoto key={ph.id} gradient={place.gradient} emoji={ph.emoji} fontSize={34} radius={14} style={styles.photo} />
-              ),
-            )}
+            {place.photos.map((ph) => (
+              <View key={ph.id} style={{ width: 96 }}>
+                {ph.uri ? (
+                  <Image source={{ uri: ph.uri }} style={styles.photo} />
+                ) : (
+                  <GradientPhoto gradient={place.gradient} emoji={ph.emoji} fontSize={34} radius={14} style={styles.photo} />
+                )}
+                {ph.addedBy ? (
+                  <Text style={[styles.credit, { color: c.inkFaint }]} numberOfLines={1}>
+                    📷 {ph.addedBy}
+                  </Text>
+                ) : null}
+              </View>
+            ))}
             <Pressable onPress={addPhotos} style={[styles.photo, styles.addPhoto, { borderColor: c.line, backgroundColor: c.card2 }]}>
               <Text style={{ fontSize: 26, color: c.inkFaint }}>＋</Text>
             </Pressable>
@@ -214,6 +234,8 @@ const styles = StyleSheet.create({
   noteText: { flex: 1, fontSize: 14, lineHeight: 20 },
 
   photo: { width: 96, height: 96, borderRadius: 14 },
+  credit: { fontSize: 10.5, marginTop: 4, textAlign: 'center' },
+  starRow: { flexDirection: 'row', gap: 5, marginTop: 6 },
   addPhoto: { borderWidth: 1.5, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
 
   cta: { marginTop: 24, borderRadius: 16, padding: 16, alignItems: 'center' },

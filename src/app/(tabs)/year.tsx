@@ -5,7 +5,7 @@ import { GradientPhoto } from '@/components/GradientPhoto';
 import { Screen } from '@/components/Screen';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useStore } from '@/data/store';
-import { averageRating } from '@/data/types';
+import { displayRating } from '@/data/types';
 import { fontRounded, radius, space, useTheme } from '@/theme';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -96,7 +96,7 @@ export default function YearScreen() {
           <Text style={[styles.sectionH, { color: c.ink }]}>Would do again ⭐</Text>
           <View style={{ gap: 10 }}>
             {faves.map((p, i) => {
-              const r = averageRating(p);
+              const r = displayRating(p);
               return (
                 <Pressable
                   key={p.id}
